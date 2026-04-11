@@ -1,0 +1,119 @@
+/* DashboardPage.module.css */
+
+/* The full app layout: sidebar + main content side by side */
+.layout {
+  display: flex;
+  min-height: 100vh;
+  background: var(--gray-light);
+  position: relative;
+}
+
+/* Dark overlay that appears behind sidebar on mobile */
+.overlay {
+  position: fixed;
+  inset: 0;                    /* covers the entire screen */
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 10;
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .overlay {
+    display: block;
+  }
+}
+
+/* Main content takes all remaining space */
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;               /* prevents overflow issues */
+  margin-left: 260px;         /* leave space for sidebar */
+  transition: margin-left 0.3s ease;
+}
+
+@media (max-width: 768px) {
+  .main {
+    margin-left: 0;           /* on mobile, sidebar overlays instead */
+  }
+}
+
+/* Top navigation bar */
+.topbar {
+  background: white;
+  padding: 16px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(82, 183, 136, 0.15);
+  box-shadow: 0 2px 8px rgba(26,58,42,0.06);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+/* Hamburger menu button — only visible on mobile */
+.menuBtn {
+  background: none;
+  font-size: 1.4rem;
+  color: var(--green-dark);
+  display: none;               /* hidden on desktop */
+  padding: 4px 8px;
+}
+
+@media (max-width: 768px) {
+  .menuBtn {
+    display: block;
+  }
+}
+
+.topbarRight {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-left: auto;
+}
+
+.greeting {
+  font-size: 0.9rem;
+  color: var(--gray-mid);
+}
+
+.greeting strong {
+  color: var(--green-dark);
+}
+
+/* Colored badge showing user role */
+.roleBadge {
+  padding: 6px 14px;
+  border-radius: 100px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+/* Admin = gold badge, Guide = green badge */
+.roleBadge[data-role="admin"] {
+  background: #fff8e1;
+  color: #b7791f;
+  border: 1px solid #f6d860;
+}
+
+.roleBadge[data-role="guide"] {
+  background: var(--green-pale);
+  color: var(--green-mid);
+  border: 1px solid var(--green-light);
+}
+
+/* Scrollable content area */
+.content {
+  flex: 1;
+  padding: 32px 28px;
+  overflow-y: auto;
+}
+
+@media (max-width: 768px) {
+  .content {
+    padding: 20px 16px;
+  }
+}

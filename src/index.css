@@ -1,0 +1,57 @@
+/* index.css */
+:root {
+  --green-dark: #1a3a2a;
+  --green-mid: #2d6a4f;
+  --green-light: #52b788;
+  --green-pale: #d8f3dc;
+  --gold: #e9c46a;
+  --white: #f8fffe;
+  --gray-light: #f0f4f1;
+  --gray-mid: #8a9e91;
+  --text-dark: #0d1f17;
+  --danger: #e63946;
+  --font-body: 'Sora', sans-serif;
+  --font-mono: 'Space Mono', monospace;
+  --shadow: 0 4px 24px rgba(26, 58, 42, 0.12);
+  --radius: 16px;
+}
+
+/* Reset — removes browser default styling */
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Base body style */
+body {
+  font-family: var(--font-body);
+  background-color: var(--gray-light);
+  color: var(--text-dark);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Makes the root div take full height */
+#root {
+  min-height: 100vh;
+}
+
+/* Reusable button base */
+button {
+  cursor: pointer;
+  font-family: var(--font-body);
+  border: none;
+  outline: none;
+}
+
+/* Reusable input base */
+input {
+  font-family: var(--font-body);
+  outline: none;
+}
+
+/* Smooth transitions for all interactive elements */
+a, button, input {
+  transition: all 0.2s ease;
+}

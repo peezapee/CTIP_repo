@@ -1,0 +1,234 @@
+/* LoginPage.module.css */
+
+/* The full-screen container split into two halves */
+.page {
+  display: flex;           /* puts children side by side */
+  min-height: 100vh;
+  background: var(--gray-light);
+}
+
+/* ── LEFT BRAND PANEL ── */
+.brandPanel {
+  flex: 1;                 /* takes up half the space */
+  background: linear-gradient(145deg, var(--green-dark) 0%, var(--green-mid) 60%, var(--green-light) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;        /* hides the decorative circles that go outside bounds */
+  padding: 48px;
+}
+
+/* Hides the left panel on small screens (mobile) */
+@media (max-width: 768px) {
+  .brandPanel {
+    display: none;
+  }
+}
+
+.brandContent {
+  position: relative;
+  z-index: 2;              /* sits above the decorative circles */
+  text-align: center;
+  color: white;
+}
+
+.logo {
+  font-size: 72px;
+  margin-bottom: 24px;
+  filter: drop-shadow(0 8px 24px rgba(0,0,0,0.3));
+  animation: float 3s ease-in-out infinite;  /* gentle floating animation */
+}
+
+/* Keyframes = defines what an animation does step by step */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-12px); }
+}
+
+.brandTitle {
+  font-family: var(--font-mono);
+  font-size: 2.2rem;
+  font-weight: 700;
+  letter-spacing: -1px;
+  margin-bottom: 12px;
+}
+
+.brandSubtitle {
+  font-size: 1rem;
+  opacity: 0.8;
+  max-width: 280px;
+  line-height: 1.6;
+  margin: 0 auto 28px;
+}
+
+.brandBadge {
+  display: inline-block;
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.3);
+  color: white;
+  padding: 8px 20px;
+  border-radius: 100px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  backdrop-filter: blur(8px);
+}
+
+/* Decorative background circles */
+.decorCircle1 {
+  position: absolute;
+  width: 400px;
+  height: 400px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.05);
+  top: -120px;
+  right: -120px;
+}
+
+.decorCircle2 {
+  position: absolute;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.04);
+  bottom: -80px;
+  left: -80px;
+}
+
+/* ── RIGHT FORM PANEL ── */
+.formPanel {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+/* The white card that holds the form */
+.formCard {
+  background: white;
+  border-radius: var(--radius);
+  padding: 48px 40px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: var(--shadow);
+  animation: slideUp 0.4s ease;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* On mobile: remove card styling, make it full width */
+@media (max-width: 768px) {
+  .formCard {
+    padding: 32px 24px;
+    box-shadow: none;
+    max-width: 100%;
+  }
+}
+
+.formHeader {
+  margin-bottom: 36px;
+}
+
+.formTitle {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--green-dark);
+  margin-bottom: 8px;
+}
+
+.formSub {
+  color: var(--gray-mid);
+  font-size: 0.9rem;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;  /* stacks children vertically */
+  gap: 20px;               /* space between each field */
+}
+
+/* Wrapper for a label + input pair */
+.fieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--green-dark);
+  letter-spacing: 0.3px;
+}
+
+.input {
+  padding: 14px 16px;
+  border: 2px solid var(--green-pale);
+  border-radius: 10px;
+  font-size: 0.95rem;
+  color: var(--text-dark);
+  background: var(--white);
+  width: 100%;
+}
+
+/* Highlight border when user clicks on input */
+.input:focus {
+  border-color: var(--green-light);
+  background: white;
+  box-shadow: 0 0 0 4px rgba(82, 183, 136, 0.12);
+}
+
+/* Red box shown when login fails */
+.errorBox {
+  background: #fff0f0;
+  border: 1px solid #fca5a5;
+  color: var(--danger);
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-size: 0.875rem;
+}
+
+/* The green login button */
+.loginBtn {
+  background: linear-gradient(135deg, var(--green-mid), var(--green-dark));
+  color: white;
+  padding: 15px;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  margin-top: 4px;
+  box-shadow: 0 4px 16px rgba(45, 106, 79, 0.35);
+}
+
+.loginBtn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(45, 106, 79, 0.4);
+}
+
+.loginBtn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Hint box at bottom — shows test credentials */
+.hint {
+  margin-top: 28px;
+  padding: 16px;
+  background: var(--gray-light);
+  border-radius: 10px;
+  font-size: 0.78rem;
+  color: var(--gray-mid);
+  line-height: 1.8;
+}
+
+.hintTitle {
+  font-weight: 700;
+  color: var(--green-mid);
+  margin-bottom: 4px;
+}

@@ -1,0 +1,185 @@
+/* Sidebar.module.css */
+
+.sidebar {
+  width: 260px;
+  min-height: 100vh;
+  background: var(--green-dark);
+  display: flex;
+  flex-direction: column;
+  position: fixed;            /* stays on screen when you scroll */
+  top: 0;
+  left: 0;
+  z-index: 20;
+  transition: transform 0.3s ease;
+}
+
+/* On mobile: hide sidebar off-screen to the left */
+@media (max-width: 768px) {
+  .sidebar {
+    transform: translateX(-100%);  /* moved fully off-screen */
+  }
+
+  /* When isOpen is true, slide it back in */
+  .sidebar.open {
+    transform: translateX(0);
+  }
+}
+
+/* ── BRAND ── */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 28px 24px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.brandIcon {
+  font-size: 28px;
+}
+
+.brandName {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 1rem;
+  color: white;
+}
+
+.brandVersion {
+  font-size: 0.7rem;
+  color: rgba(255,255,255,0.4);
+}
+
+/* ── USER INFO ── */
+.userInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 24px;
+}
+
+/* Circular avatar with the user's initial */
+.avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--green-light), var(--gold));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--green-dark);
+  flex-shrink: 0;
+}
+
+.userName {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: white;
+}
+
+.userRole {
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.5);
+  margin-top: 2px;
+}
+
+/* ── DIVIDER ── */
+.divider {
+  height: 1px;
+  background: rgba(255,255,255,0.08);
+  margin: 0 24px;
+}
+
+/* ── NAV MENU ── */
+.nav {
+  flex: 1;
+  padding: 20px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Small section label above menu items */
+.navLabel {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.3);
+  letter-spacing: 1.5px;
+  padding: 0 12px;
+  margin-bottom: 8px;
+}
+
+/* Each navigation button */
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: none;
+  color: rgba(255,255,255,0.65);
+  font-size: 0.9rem;
+  width: 100%;
+  text-align: left;
+  position: relative;
+}
+
+.navItem:hover {
+  background: rgba(255,255,255,0.08);
+  color: white;
+}
+
+/* Active tab — highlighted in green */
+.navItem.active {
+  background: var(--green-light);
+  color: var(--green-dark);
+  font-weight: 600;
+}
+
+.navIcon {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.navLabel2 {
+  flex: 1;
+}
+
+/* Red notification badge on Alerts tab */
+.badge {
+  background: #e63946;
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 700;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── FOOTER / LOGOUT ── */
+.footer {
+  padding: 16px 12px 24px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+
+.logoutBtn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: none;
+  color: rgba(255,255,255,0.5);
+  font-size: 0.9rem;
+  width: 100%;
+}
+
+.logoutBtn:hover {
+  background: rgba(230, 57, 70, 0.15);
+  color: #fc8181;
+}

@@ -1,49 +1,64 @@
 // components/AdminDashboard.jsx
-// Shows the admin view of the dashboard.
-// The content changes based on which sidebar tab is active.
-//
-// Props:
-//   activeTab = which tab is selected (e.g. 'dashboard', 'guides', etc.)
 
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import styles from './Dashboard.module.css'
 
-// Fake data for the overview cards
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "../firebase";
+
 const STATS = [
-  { label: 'Total Guides',       value: '24',  icon: '👥', trend: '+2 this month',  color: '#2d6a4f' },
-  { label: 'Active Modules',     value: '8',   icon: '📚', trend: '3 in progress',  color: '#3a86ff' },
-  { label: 'Alerts Today',       value: '5',   icon: '🚨', trend: '2 unresolved',   color: '#e63946' },
-  { label: 'Certifications',     value: '61',  icon: '🎖️', trend: '4 expiring soon',color: '#e9c46a' },
+  { label: 'Total Guides', value: '24', icon: '👥', trend: '+2 this month', color: '#2d6a4f' },
+  { label: 'Active Modules', value: '8', icon: '📚', trend: '3 in progress', color: '#3a86ff' },
+  { label: 'Alerts Today', value: '5', icon: '🚨', trend: '2 unresolved', color: '#e63946' },
+  { label: 'Certifications', value: '61', icon: '🎖️', trend: '4 expiring soon', color: '#e9c46a' },
 ]
 
-// Fake list of park guides for the table
-const GUIDES = [
-  { name: 'Ahmad Razif',    status: 'Active',    progress: 80, module: 'Biodiversity' },
-  { name: 'Siti Nuraini',   status: 'Active',    progress: 65, module: 'Conservation' },
-  { name: 'Ricky Unggang',  status: 'Inactive',  progress: 30, module: 'Safety' },
-  { name: 'Linda Empang',   status: 'Active',    progress: 95, module: 'Eco-tourism' },
-  { name: 'James Liew',     status: 'Active',    progress: 50, module: 'Legislation' },
-]
-
-// Fake alerts
 const ALERTS = [
-  { time: '09:12 AM', type: 'High',   msg: 'Possible plant handling detected — Guide #3, Sector B' },
+  { time: '09:12 AM', type: 'High', msg: 'Possible plant handling detected — Guide #3, Sector B' },
   { time: '08:47 AM', type: 'Medium', msg: 'Wildlife disturbance flagged — near River Trail' },
-  { time: 'Yesterday', type: 'Low',  msg: 'Guide certification expiring — Ahmad Razif' },
+  { time: 'Yesterday', type: 'Low', msg: 'Guide certification expiring — Ahmad Razif' },
 ]
 
 function AdminDashboard({ activeTab }) {
-  // Decide what to render based on the active tab
+
+  const [users, setUsers] = useState([])
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, "users"))
+
+        const userList = []
+        querySnapshot.forEach((doc) => {
+          userList.push({
+            id: doc.id,
+            ...doc.data()
+          })
+        })
+
+        setUsers(userList)
+
+      } catch (error) {
+        console.error("Error fetching users:", error)
+      }
+    }
+
+    fetchUsers()
+  }, [])
+
+  // 🔥 SEPARATE USERS
+  const guides = users.filter(u => u.role === "guide")
+  const admins = users.filter(u => u.role === "admin")
+
   const renderContent = () => {
     switch (activeTab) {
 
-      // ── OVERVIEW TAB ──
+      // ── OVERVIEW ──
       case 'dashboard':
         return (
           <>
             <SectionTitle title="Admin Overview" subtitle="Sarawak Forestry Corporation Platform" />
 
-            {/* Stat cards in a grid */}
             <div className={styles.statsGrid}>
               {STATS.map((stat, i) => (
                 <div key={i} className={styles.statCard} style={{ '--accent': stat.color }}>
@@ -55,7 +70,6 @@ function AdminDashboard({ activeTab }) {
               ))}
             </div>
 
-            {/* Recent alerts preview */}
             <div className={styles.section}>
               <h3 className={styles.sectionTitle}>Recent Alerts</h3>
               {ALERTS.map((alert, i) => (
@@ -65,42 +79,51 @@ function AdminDashboard({ activeTab }) {
           </>
         )
 
-      // ── GUIDES TAB ──
+      // ── GUIDES (REAL + SEPARATED) ──
       case 'guides':
         return (
           <>
-            <SectionTitle title="Manage Guides" subtitle="View and monitor all park guides" />
+            <SectionTitle title="Manage Users" subtitle="Real users from database" />
+
             <div className={styles.section}>
-              {/* Table showing guide info */}
               <div className={styles.tableWrapper}>
                 <table className={styles.table}>
                   <thead>
                     <tr>
                       <th>Name</th>
-                      <th>Status</th>
-                      <th>Current Module</th>
-                      <th>Progress</th>
+                      <th>Email</th>
+                      <th>Role</th>
                     </tr>
                   </thead>
+
                   <tbody>
-                    {GUIDES.map((g, i) => (
-                      <tr key={i}>
-                        <td className={styles.guideName}>{g.name}</td>
-                        <td>
-                          <span className={styles.statusBadge} data-status={g.status.toLowerCase()}>
-                            {g.status}
-                          </span>
-                        </td>
-                        <td>{g.module}</td>
-                        <td>
-                          {/* Progress bar */}
-                          <div className={styles.progressBar}>
-                            <div className={styles.progressFill} style={{ width: `${g.progress}%` }} />
-                          </div>
-                          <span className={styles.progressText}>{g.progress}%</span>
-                        </td>
+
+                    {/* 🛡️ ADMINS */}
+                    <tr>
+                      <td colSpan="3"><strong>🛡️ Admins ({admins.length})</strong></td>
+                    </tr>
+
+                    {admins.map((u) => (
+                      <tr key={u.id}>
+                        <td>{u.name}</td>
+                        <td>{u.email}</td>
+                        <td>{u.role}</td>
                       </tr>
                     ))}
+
+                    {/* 👤 GUIDES */}
+                    <tr>
+                      <td colSpan="3"><strong>👤 Guides ({guides.length})</strong></td>
+                    </tr>
+
+                    {guides.map((u) => (
+                      <tr key={u.id}>
+                        <td>{u.name}</td>
+                        <td>{u.email}</td>
+                        <td>{u.role}</td>
+                      </tr>
+                    ))}
+
                   </tbody>
                 </table>
               </div>
@@ -108,46 +131,28 @@ function AdminDashboard({ activeTab }) {
           </>
         )
 
-      // ── MODULES TAB ──
       case 'modules':
         return (
-          <>
-            <SectionTitle title="Training Modules" subtitle="Manage training content for guides" />
-            <div className={styles.moduleGrid}>
-              {['Biodiversity', 'Conservation', 'Eco-tourism', 'Legislation', 'Safety Protocols', 'Wildlife Handling'].map((mod, i) => (
-                <div key={i} className={styles.moduleCard}>
-                  <div className={styles.moduleEmoji}>
-                    {['🦋','🌿','🌍','⚖️','🦺','🐾'][i]}
-                  </div>
-                  <div className={styles.moduleName}>{mod}</div>
-                  <div className={styles.moduleStats}>12 enrolled</div>
-                  <button className={styles.moduleBtn}>Manage →</button>
-                </div>
-              ))}
-            </div>
-          </>
+          <div className={styles.emptyState}>
+            <div className={styles.emptyIcon}>📚</div>
+            <h3>Modules Section</h3>
+          </div>
         )
 
-      // ── ALERTS TAB ──
       case 'alerts':
         return (
-          <>
-            <SectionTitle title="Alert Center" subtitle="Real-time AI detection alerts" />
-            <div className={styles.section}>
-              {ALERTS.map((alert, i) => (
-                <AlertRow key={i} alert={alert} expanded />
-              ))}
-            </div>
-          </>
+          <div className={styles.section}>
+            {ALERTS.map((alert, i) => (
+              <AlertRow key={i} alert={alert} />
+            ))}
+          </div>
         )
 
-      // ── DEFAULT (Settings etc.) ──
       default:
         return (
           <div className={styles.emptyState}>
             <div className={styles.emptyIcon}>🚧</div>
             <h3>Coming Soon</h3>
-            <p>This section is under construction.</p>
           </div>
         )
     }
@@ -156,9 +161,8 @@ function AdminDashboard({ activeTab }) {
   return <div>{renderContent()}</div>
 }
 
-// ── REUSABLE SMALL COMPONENTS ──
+// ── COMPONENTS ──
 
-// Page title + subtitle at the top of each section
 function SectionTitle({ title, subtitle }) {
   return (
     <div className={styles.pageHeader}>
@@ -168,9 +172,9 @@ function SectionTitle({ title, subtitle }) {
   )
 }
 
-// A single alert row
-function AlertRow({ alert, expanded }) {
+function AlertRow({ alert }) {
   const colors = { High: '#e63946', Medium: '#f4a261', Low: '#2d6a4f' }
+
   return (
     <div className={styles.alertRow}>
       <div className={styles.alertDot} style={{ background: colors[alert.type] }} />

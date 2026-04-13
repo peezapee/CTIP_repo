@@ -3,10 +3,10 @@
 import React, { useEffect, useState } from 'react'
 import styles from './Dashboard.module.css'
 
-import { collection, getDocs, setDoc, doc } from "firebase/firestore";
+import { collection, onSnapshot, getDocs } from "firebase/firestore";
 import { db, auth } from "../firebase";
-import { createUserWithEmailAndPassword } from "firebase/auth";
 
+// ===== STATIC UI DATA =====
 const STATS = [
   { label: 'Total Guides', value: '24', icon: '👥', trend: '+2 this month', color: '#2d6a4f' },
   { label: 'Active Modules', value: '8', icon: '📚', trend: '3 in progress', color: '#3a86ff' },
@@ -24,12 +24,16 @@ function AdminDashboard({ activeTab }) {
 
   const [users, setUsers] = useState([])
 
-  // 🔥 FORM STATE
+  // ===== FORM STATE =====
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [message, setMessage] = useState("")
+  const [deleteId, setDeleteId] = useState(null);
+  const [logs, setLogs] = useState([]);
 
-  // 🔥 FETCH USERS
+  // ===== FETCH USERS =====
   const fetchUsers = async () => {
     try {
       const querySnapshot = await getDocs(collection(db, "users"))
@@ -37,7 +41,7 @@ function AdminDashboard({ activeTab }) {
       const userList = []
       querySnapshot.forEach((doc) => {
         userList.push({
-          id: doc.id,
+          uid: doc.id,
           ...doc.data()
         })
       })
@@ -50,49 +54,150 @@ function AdminDashboard({ activeTab }) {
   }
 
   useEffect(() => {
-    fetchUsers()
-  }, [])
+  fetchUsers();
+}, []);
 
-  // 🔥 CREATE GUIDE FUNCTION
-  const handleCreateGuide = async () => {
-    try {
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        email,
-        password
-      )
+useEffect(() => {
 
-      const newUser = userCredential.user
+  if (activeTab !== "guides") return;
 
-      await setDoc(doc(db, "users", newUser.uid), {
-        email: newUser.email,
-        name: name,
-        role: "guide"
-      })
+  const unsubscribe = onSnapshot(collection(db, "logs"), (snapshot) => {
+    const logList = [];
 
-      alert("Guide created!")
+    snapshot.forEach((doc) => {
+      logList.push({
+        id: doc.id,
+        ...doc.data(),
+      });
+    });
 
-      // refresh list
-      fetchUsers()
+    logList.reverse();
+    setLogs(logList);
+  });
 
-      // reset form
-      setName("")
-      setEmail("")
-      setPassword("")
+  return () => unsubscribe();
 
-    } catch (error) {
-      console.error(error.message)
-      alert("Error creating guide")
+}, [activeTab]);
+
+  // ===== CREATE GUIDE (SECURE BACKEND) =====
+const handleCreateGuide = async () => {
+  try {
+
+    if (!name || !email || !password) {
+      setMessage("❌ All fields are required");
+      return;
     }
-  }
+    
+    // ✅ VALIDATION (CORRECT PLACE)
+    if (!/^[a-zA-Z\s]+$/.test(name)) {
+      setMessage("❌ Name must contain only letters");
+      return;
+    }
 
-  // 🔥 SEPARATE USERS
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setMessage("❌ Invalid email format");
+      return;
+    }
+
+
+    if (password.length < 6) {
+      setMessage("❌ Password must be at least 6 characters");
+      return;
+    }
+
+    const user = auth.currentUser;
+
+    if (!user) {
+      setMessage("❌ User not logged in");
+      return;
+    }
+
+    setLoading(true);
+    setMessage("");
+
+    const token = await user.getIdToken();
+
+    const res = await fetch("http://localhost:3000/create-guide", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        name,
+        email,
+        password,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      setMessage("✅ Guide created successfully!");
+      await fetchUsers();
+
+      setName("");
+      setEmail("");
+      setPassword("");
+    } else {
+      setMessage("❌ " + data.error);
+    }
+
+    setTimeout(() => {
+      setMessage("");
+    }, 3000);
+
+  } catch (error) {
+    console.error(error);
+    setMessage("❌ Server error");
+  } finally {
+    setLoading(false);
+  }
+};
+
+const handleDelete = async (uid) => {
+
+  try {
+    const user = auth.currentUser;
+    const token = await user.getIdToken();
+
+    const res = await fetch(`http://localhost:3000/delete-guide/${uid}`, {
+      method: "DELETE",
+      headers: {
+        "Authorization": `Bearer ${token}`
+      }
+    });
+
+    const data = await res.json();
+
+  if (data.success) {
+    setMessage("✅ Guide deleted!");
+    await fetchUsers();
+
+    // ⏳ auto disappear
+    setTimeout(() => {
+      setMessage("");
+    }, 3000);
+
+    } else {
+      setMessage("❌ " + data.error);
+    }
+
+  } catch (error) {
+    console.error(error);
+    setMessage("❌ Delete failed");
+  }
+};
+
+  // ===== FILTER USERS =====
   const guides = users.filter(u => u.role === "guide")
   const admins = users.filter(u => u.role === "admin")
 
+  // ===== MAIN RENDER =====
   const renderContent = () => {
     switch (activeTab) {
 
+      // ===== DASHBOARD =====
       case 'dashboard':
         return (
           <>
@@ -118,14 +223,14 @@ function AdminDashboard({ activeTab }) {
           </>
         )
 
+      // ===== GUIDES =====
       case 'guides':
         return (
           <>
-            <SectionTitle title="Manage Users" subtitle="Create and view users" />
+            <SectionTitle title="Manage Users" subtitle="Create Guides" />
 
-            {/* 🔥 CREATE GUIDE FORM */}
-            <div className={styles.section}>
-              <h3>Create Guide</h3>
+            {/* CREATE GUIDE */}
+            <div className={styles.formRow}>
 
               <input
                 type="text"
@@ -148,12 +253,17 @@ function AdminDashboard({ activeTab }) {
                 onChange={(e) => setPassword(e.target.value)}
               />
 
-              <button onClick={handleCreateGuide}>
-                Create Guide
+              <button 
+                className={styles.createBtn}
+                onClick={handleCreateGuide} 
+                disabled={loading}
+              >
+                {loading ? "Creating..." : "➕ Create"}
               </button>
+
             </div>
 
-            {/* 🔥 USER TABLE */}
+            {/* USER TABLE */}
             <div className={styles.section}>
               <div className={styles.tableWrapper}>
                 <table className={styles.table}>
@@ -162,6 +272,7 @@ function AdminDashboard({ activeTab }) {
                       <th>Name</th>
                       <th>Email</th>
                       <th>Role</th>
+                      <th>Actions</th>
                     </tr>
                   </thead>
 
@@ -169,27 +280,40 @@ function AdminDashboard({ activeTab }) {
 
                     {/* ADMINS */}
                     <tr>
-                      <td colSpan="3"><strong>🛡️ Admins ({admins.length})</strong></td>
+                      <td colSpan="4"><strong>🛡️ Admins ({admins.length})</strong></td>
                     </tr>
 
                     {admins.map((u) => (
-                      <tr key={u.id}>
+                      <tr key={u.uid}>
                         <td>{u.name}</td>
                         <td>{u.email}</td>
                         <td>{u.role}</td>
+                        <td>
+                          <button disabled className={styles.disabledBtn}>
+                            🔒Protected
+                          </button>
+                        </td>
                       </tr>
                     ))}
 
                     {/* GUIDES */}
                     <tr>
-                      <td colSpan="3"><strong>👤 Guides ({guides.length})</strong></td>
+                      <td colSpan="4"><strong>👤 Guides ({guides.length})</strong></td>
                     </tr>
 
                     {guides.map((u) => (
-                      <tr key={u.id}>
+                      <tr key={u.uid}>
                         <td>{u.name}</td>
                         <td>{u.email}</td>
                         <td>{u.role}</td>
+                        <td>
+                          <button 
+                              className={styles.deleteBtn}
+                              onClick={() => setDeleteId(u.uid)}
+                            >
+                              🗑 Delete
+                            </button>
+                        </td>
                       </tr>
                     ))}
 
@@ -197,6 +321,27 @@ function AdminDashboard({ activeTab }) {
                 </table>
               </div>
             </div>
+
+           <div className={styles.section}>
+          <h3>Recent Activity</h3>
+
+          {logs.length === 0 ? (
+            <p style={{ opacity: 0.6 }}>No recent activity</p>
+          ) : (
+            <ul className={styles.logList}>
+              {logs.slice(0, 5).map((log) => (
+                <li key={log.id}>
+                  {log.action === "delete_guide" && (
+                    <>🗑 Deleted {log.targetEmail} ({getTimeAgo(log.timestamp)})</>
+                  )}
+                  {log.action === "create_guide" && (
+                    <>➕ Created {log.targetEmail} ({getTimeAgo(log.timestamp)})</>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
           </>
         )
 
@@ -206,14 +351,61 @@ function AdminDashboard({ activeTab }) {
             <div className={styles.emptyIcon}>🚧</div>
             <h3>Coming Soon</h3>
           </div>
+          
         )
     }
   }
 
-  return <div>{renderContent()}</div>
+    return (
+    <div>
+
+      {/* ✅ CONFIRM BOX (PUT HERE) */}
+      {deleteId && (
+        <div className={styles.confirmBox}>
+          <p>Are you sure you want to delete this guide?</p>
+
+          <button 
+            className={styles.cancelBtn}
+            onClick={() => setDeleteId(null)}
+          >
+            Cancel
+          </button>
+
+          <button 
+            className={styles.deleteBtn}
+            onClick={() => {
+              handleDelete(deleteId);
+              setDeleteId(null);
+            }}
+          >
+            Delete
+          </button>
+        </div>
+      )}
+
+      {/* EXISTING CONTENT */}
+      {renderContent()}
+
+    </div>
+  );
 }
 
-// COMPONENTS
+const getTimeAgo = (timestamp) => {
+  if (!timestamp) return "";
+
+  const now = new Date();
+  const logTime = new Date(timestamp.seconds * 1000);
+
+  const diff = Math.floor((now - logTime) / 1000);
+
+  if (diff < 60) return "just now";
+  if (diff < 3600) return Math.floor(diff / 60) + " min ago";
+  if (diff < 86400) return Math.floor(diff / 3600) + " hr ago";
+
+  return Math.floor(diff / 86400) + " days ago";
+};
+
+// ===== COMPONENTS =====
 
 function SectionTitle({ title, subtitle }) {
   return (
@@ -238,4 +430,4 @@ function AlertRow({ alert }) {
   )
 }
 
-export default AdminDashboard
+export default AdminDashboard;

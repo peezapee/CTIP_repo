@@ -126,6 +126,7 @@ function LoginPage({ onLogin }) {
           <div className={styles.hint}>
             <p className={styles.hintTitle}>Test Account:</p>
             <p>admin@sfc.gov.my / admin123</p>
+            <p>admin2@sfc.gov.my / admin123</p>
           </div>
         </div>
       </div>

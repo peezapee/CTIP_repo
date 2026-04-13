@@ -1,8 +1,4 @@
 // pages/DashboardPage.jsx
-// This is the DASHBOARD — the main screen after login.
-// Props:
-//   user     = the logged-in user object (name, role, email)
-//   onLogout = function to call when user clicks Logout
 
 import React, { useState } from 'react'
 import Sidebar from '../components/Sidebar.jsx'
@@ -11,38 +7,40 @@ import GuideDashboard from '../components/GuideDashboard.jsx'
 import styles from './DashboardPage.module.css'
 
 function DashboardPage({ user, onLogout }) {
-  // activeTab controls which section of the sidebar is selected
-  const [activeTab, setActiveTab]     = useState('dashboard')
-  // sidebarOpen controls if the sidebar is visible on mobile
+  const [activeTab, setActiveTab] = useState('dashboard')
   const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  // 🔥 SAFE FALLBACKS (prevents crash)
+  const displayName = user?.name || user?.email || "User"
+  const role = user?.role || "guide"
 
   return (
     <div className={styles.layout}>
 
-      {/* Mobile overlay — dark background when sidebar is open on small screens */}
+      {/* Mobile overlay */}
       {sidebarOpen && (
         <div
           className={styles.overlay}
-          onClick={() => setSidebarOpen(false)}  // clicking overlay closes sidebar
+          onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      {/* Sidebar navigation on the left */}
+      {/* Sidebar */}
       <Sidebar
         user={user}
         activeTab={activeTab}
         onTabChange={(tab) => {
           setActiveTab(tab)
-          setSidebarOpen(false)  // close sidebar on mobile after selecting a tab
+          setSidebarOpen(false)
         }}
         onLogout={onLogout}
         isOpen={sidebarOpen}
       />
 
-      {/* Main content area on the right */}
+      {/* Main content */}
       <div className={styles.main}>
 
-        {/* Top bar with menu button (mobile) and user greeting */}
+        {/* Top bar */}
         <header className={styles.topbar}>
           <button
             className={styles.menuBtn}
@@ -51,23 +49,26 @@ function DashboardPage({ user, onLogout }) {
           >
             ☰
           </button>
+
           <div className={styles.topbarRight}>
             <span className={styles.greeting}>
-              Hello, <strong>{user.name}</strong> 👋
+              Hello, <strong>{displayName}</strong> 👋
             </span>
-            <div className={styles.roleBadge} data-role={user.role}>
-              {user.role === 'admin' ? '🛡️ Admin' : '🌿 Park Guide'}
+
+            <div className={styles.roleBadge} data-role={role}>
+              {role === 'admin' ? '🛡️ Admin' : '🌿 Park Guide'}
             </div>
           </div>
         </header>
 
-        {/* Page content — switches between Admin and Guide view */}
+        {/* Content */}
         <div className={styles.content}>
-          {user.role === 'admin'
+          {role === 'admin'
             ? <AdminDashboard activeTab={activeTab} />
             : <GuideDashboard activeTab={activeTab} user={user} />
           }
         </div>
+
       </div>
     </div>
   )

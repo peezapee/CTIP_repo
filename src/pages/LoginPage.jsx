@@ -2,45 +2,66 @@
 import React, { useState } from 'react'
 import styles from './LoginPage.module.css'
 
-// Fake user accounts for testing (later you'll connect to a real backend)
-const FAKE_USERS = [
-  { email: 'admin@sfc.gov.my',    password: 'admin123',  name: 'Admin User',  role: 'admin' },
-  { email: 'guide@sfc.gov.my',    password: 'guide123',  name: 'Ahmad Razif', role: 'guide' },
-]
+// Firebase imports
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth, db } from "../firebase";
+import { doc, getDoc } from "firebase/firestore";
 
 function LoginPage({ onLogin }) {
-  // These "states" store what the user types in the input fields
-  const [email, setEmail]       = useState('')       // stores email input
-  const [password, setPassword] = useState('')       // stores password input
-  const [error, setError]       = useState('')       // stores error message if login fails
-  const [loading, setLoading]   = useState(false)   // shows a spinner while "logging in"
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
-  // This runs when the user clicks the Login button
   const handleLogin = async (e) => {
-    e.preventDefault()  // stops the page from refreshing (default form behavior)
+    e.preventDefault()
 
-    setError('')         // clear old errors
-    setLoading(true)    // show loading state
+    setError('')
+    setLoading(true)
 
-    // Simulate a network delay (like a real API call)
-    await new Promise(resolve => setTimeout(resolve, 800))
+    try {
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      )
 
-    // Check if the email + password match any fake user
-    const user = FAKE_USERS.find(
-      u => u.email === email && u.password === password
-    )
+      const user = userCredential.user
 
-    if (user) {
-      onLogin(user)  // tell App.jsx "this person is now logged in"
-    } else {
-      setError('Invalid email or password. Please try again.')
-      setLoading(false)
+      console.log("Logged in:", user)
+
+      // 🔥 GET DATA FROM FIRESTORE
+      const docRef = doc(db, "users", user.uid)
+      const docSnap = await getDoc(docRef)
+
+      if (docSnap.exists()) {
+        const userData = docSnap.data()
+
+        console.log("Firestore data:", userData)
+
+        // ✅ send FULL user data
+        onLogin({
+          uid: user.uid,
+          email: user.email,
+          name: userData.name,
+          role: userData.role
+        })
+
+      } else {
+        console.error("No Firestore user found")
+        setError("User data not found in database.")
+      }
+
+    } catch (err) {
+      console.error(err.message)
+      setError("Invalid email or password.")
     }
+
+    setLoading(false)
   }
 
   return (
     <div className={styles.page}>
-      {/* Left panel — decorative branding side */}
       <div className={styles.brandPanel}>
         <div className={styles.brandContent}>
           <div className={styles.logo}>🌿</div>
@@ -54,7 +75,6 @@ function LoginPage({ onLogin }) {
         </div>
       </div>
 
-      {/* Right panel — the actual login form */}
       <div className={styles.formPanel}>
         <div className={styles.formCard}>
           <div className={styles.formHeader}>
@@ -62,29 +82,23 @@ function LoginPage({ onLogin }) {
             <p className={styles.formSub}>Sign in to your account to continue</p>
           </div>
 
-          {/* The login form */}
-          {/* onSubmit = runs handleLogin when form is submitted */}
           <form onSubmit={handleLogin} className={styles.form}>
 
-            {/* Email field */}
             <div className={styles.fieldGroup}>
-              <label className={styles.label} htmlFor="email">Email address</label>
+              <label className={styles.label}>Email address</label>
               <input
-                id="email"
                 type="email"
                 className={styles.input}
                 placeholder="yourname@sfc.gov.my"
-                value={email}                          // controlled input — React tracks this value
-                onChange={e => setEmail(e.target.value)} // update state when user types
+                value={email}
+                onChange={e => setEmail(e.target.value)}
                 required
               />
             </div>
 
-            {/* Password field */}
             <div className={styles.fieldGroup}>
-              <label className={styles.label} htmlFor="password">Password</label>
+              <label className={styles.label}>Password</label>
               <input
-                id="password"
                 type="password"
                 className={styles.input}
                 placeholder="Enter your password"
@@ -94,28 +108,24 @@ function LoginPage({ onLogin }) {
               />
             </div>
 
-            {/* Show error message if login failed */}
             {error && (
               <div className={styles.errorBox}>
                 ⚠️ {error}
               </div>
             )}
 
-            {/* Login button */}
             <button
               type="submit"
               className={styles.loginBtn}
-              disabled={loading}  // can't click again while loading
+              disabled={loading}
             >
               {loading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
 
-          {/* Test credentials hint — remove this in production! */}
           <div className={styles.hint}>
-            <p className={styles.hintTitle}>Test Accounts:</p>
-            <p>Admin: admin@sfc.gov.my / admin123</p>
-            <p>Guide: guide@sfc.gov.my / guide123</p>
+            <p className={styles.hintTitle}>Test Account:</p>
+            <p>admin@sfc.gov.my / admin123</p>
           </div>
         </div>
       </div>

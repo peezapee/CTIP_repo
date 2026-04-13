@@ -3,8 +3,9 @@
 import React, { useEffect, useState } from 'react'
 import styles from './Dashboard.module.css'
 
-import { collection, getDocs } from "firebase/firestore";
-import { db } from "../firebase";
+import { collection, getDocs, setDoc, doc } from "firebase/firestore";
+import { db, auth } from "../firebase";
+import { createUserWithEmailAndPassword } from "firebase/auth";
 
 const STATS = [
   { label: 'Total Guides', value: '24', icon: '👥', trend: '+2 this month', color: '#2d6a4f' },
@@ -23,28 +24,67 @@ function AdminDashboard({ activeTab }) {
 
   const [users, setUsers] = useState([])
 
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const querySnapshot = await getDocs(collection(db, "users"))
+  // 🔥 FORM STATE
+  const [name, setName] = useState("")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
 
-        const userList = []
-        querySnapshot.forEach((doc) => {
-          userList.push({
-            id: doc.id,
-            ...doc.data()
-          })
+  // 🔥 FETCH USERS
+  const fetchUsers = async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, "users"))
+
+      const userList = []
+      querySnapshot.forEach((doc) => {
+        userList.push({
+          id: doc.id,
+          ...doc.data()
         })
+      })
 
-        setUsers(userList)
+      setUsers(userList)
 
-      } catch (error) {
-        console.error("Error fetching users:", error)
-      }
+    } catch (error) {
+      console.error("Error fetching users:", error)
     }
+  }
 
+  useEffect(() => {
     fetchUsers()
   }, [])
+
+  // 🔥 CREATE GUIDE FUNCTION
+  const handleCreateGuide = async () => {
+    try {
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      )
+
+      const newUser = userCredential.user
+
+      await setDoc(doc(db, "users", newUser.uid), {
+        email: newUser.email,
+        name: name,
+        role: "guide"
+      })
+
+      alert("Guide created!")
+
+      // refresh list
+      fetchUsers()
+
+      // reset form
+      setName("")
+      setEmail("")
+      setPassword("")
+
+    } catch (error) {
+      console.error(error.message)
+      alert("Error creating guide")
+    }
+  }
 
   // 🔥 SEPARATE USERS
   const guides = users.filter(u => u.role === "guide")
@@ -53,7 +93,6 @@ function AdminDashboard({ activeTab }) {
   const renderContent = () => {
     switch (activeTab) {
 
-      // ── OVERVIEW ──
       case 'dashboard':
         return (
           <>
@@ -79,12 +118,42 @@ function AdminDashboard({ activeTab }) {
           </>
         )
 
-      // ── GUIDES (REAL + SEPARATED) ──
       case 'guides':
         return (
           <>
-            <SectionTitle title="Manage Users" subtitle="Real users from database" />
+            <SectionTitle title="Manage Users" subtitle="Create and view users" />
 
+            {/* 🔥 CREATE GUIDE FORM */}
+            <div className={styles.section}>
+              <h3>Create Guide</h3>
+
+              <input
+                type="text"
+                placeholder="Name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+
+              <input
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+
+              <input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+
+              <button onClick={handleCreateGuide}>
+                Create Guide
+              </button>
+            </div>
+
+            {/* 🔥 USER TABLE */}
             <div className={styles.section}>
               <div className={styles.tableWrapper}>
                 <table className={styles.table}>
@@ -98,7 +167,7 @@ function AdminDashboard({ activeTab }) {
 
                   <tbody>
 
-                    {/* 🛡️ ADMINS */}
+                    {/* ADMINS */}
                     <tr>
                       <td colSpan="3"><strong>🛡️ Admins ({admins.length})</strong></td>
                     </tr>
@@ -111,7 +180,7 @@ function AdminDashboard({ activeTab }) {
                       </tr>
                     ))}
 
-                    {/* 👤 GUIDES */}
+                    {/* GUIDES */}
                     <tr>
                       <td colSpan="3"><strong>👤 Guides ({guides.length})</strong></td>
                     </tr>
@@ -131,23 +200,6 @@ function AdminDashboard({ activeTab }) {
           </>
         )
 
-      case 'modules':
-        return (
-          <div className={styles.emptyState}>
-            <div className={styles.emptyIcon}>📚</div>
-            <h3>Modules Section</h3>
-          </div>
-        )
-
-      case 'alerts':
-        return (
-          <div className={styles.section}>
-            {ALERTS.map((alert, i) => (
-              <AlertRow key={i} alert={alert} />
-            ))}
-          </div>
-        )
-
       default:
         return (
           <div className={styles.emptyState}>
@@ -161,7 +213,7 @@ function AdminDashboard({ activeTab }) {
   return <div>{renderContent()}</div>
 }
 
-// ── COMPONENTS ──
+// COMPONENTS
 
 function SectionTitle({ title, subtitle }) {
   return (

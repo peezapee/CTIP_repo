@@ -1,49 +1,212 @@
 // components/AdminDashboard.jsx
-// Shows the admin view of the dashboard.
-// The content changes based on which sidebar tab is active.
-//
-// Props:
-//   activeTab = which tab is selected (e.g. 'dashboard', 'guides', etc.)
 
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import styles from './Dashboard.module.css'
 
-// Fake data for the overview cards
+import { collection, onSnapshot, getDocs, query, orderBy } from "firebase/firestore";
+import { db, auth } from "../firebase";
+
+// ===== STATIC UI DATA =====
 const STATS = [
-  { label: 'Total Guides',       value: '24',  icon: '👥', trend: '+2 this month',  color: '#2d6a4f' },
-  { label: 'Active Modules',     value: '8',   icon: '📚', trend: '3 in progress',  color: '#3a86ff' },
-  { label: 'Alerts Today',       value: '5',   icon: '🚨', trend: '2 unresolved',   color: '#e63946' },
-  { label: 'Certifications',     value: '61',  icon: '🎖️', trend: '4 expiring soon',color: '#e9c46a' },
+  { label: 'Total Guides', value: '24', icon: '👥', trend: '+2 this month', color: '#2d6a4f' },
+  { label: 'Active Modules', value: '8', icon: '📚', trend: '3 in progress', color: '#3a86ff' },
+  { label: 'Alerts Today', value: '5', icon: '🚨', trend: '2 unresolved', color: '#e63946' },
+  { label: 'Certifications', value: '61', icon: '🎖️', trend: '4 expiring soon', color: '#e9c46a' },
 ]
 
-// Fake list of park guides for the table
-const GUIDES = [
-  { name: 'Ahmad Razif',    status: 'Active',    progress: 80, module: 'Biodiversity' },
-  { name: 'Siti Nuraini',   status: 'Active',    progress: 65, module: 'Conservation' },
-  { name: 'Ricky Unggang',  status: 'Inactive',  progress: 30, module: 'Safety' },
-  { name: 'Linda Empang',   status: 'Active',    progress: 95, module: 'Eco-tourism' },
-  { name: 'James Liew',     status: 'Active',    progress: 50, module: 'Legislation' },
-]
-
-// Fake alerts
 const ALERTS = [
-  { time: '09:12 AM', type: 'High',   msg: 'Possible plant handling detected — Guide #3, Sector B' },
+  { time: '09:12 AM', type: 'High', msg: 'Possible plant handling detected — Guide #3, Sector B' },
   { time: '08:47 AM', type: 'Medium', msg: 'Wildlife disturbance flagged — near River Trail' },
-  { time: 'Yesterday', type: 'Low',  msg: 'Guide certification expiring — Ahmad Razif' },
+  { time: 'Yesterday', type: 'Low', msg: 'Guide certification expiring — Ahmad Razif' },
 ]
 
 function AdminDashboard({ activeTab }) {
-  // Decide what to render based on the active tab
+
+  const [users, setUsers] = useState([])
+
+  // ===== FORM STATE =====
+  const [name, setName] = useState("")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [message, setMessage] = useState("")
+  const [deleteId, setDeleteId] = useState(null);
+  const [logs, setLogs] = useState([]);
+
+  // ===== FETCH USERS =====
+  const fetchUsers = async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, "users"))
+
+      const userList = []
+      querySnapshot.forEach((doc) => {
+        userList.push({
+          uid: doc.id,
+          ...doc.data()
+        })
+      })
+
+      setUsers(userList)
+
+    } catch (error) {
+      console.error("Error fetching users:", error)
+    }
+  }
+
+  useEffect(() => {
+  fetchUsers();
+}, []);
+
+useEffect(() => {
+
+  if (activeTab !== "guides") return;
+
+  const q = query(
+    collection(db, "logs"),
+    orderBy("timestamp", "desc") 
+  );
+
+  const unsubscribe = onSnapshot(q, (snapshot) => {
+    const logList = [];
+
+    snapshot.forEach((doc) => {
+      logList.push({
+        id: doc.id,
+        ...doc.data(),
+      });
+    });
+
+    setLogs(logList); 
+  });
+
+  return () => unsubscribe();
+
+}, [activeTab]);
+
+  // ===== CREATE GUIDE (SECURE BACKEND) =====
+const handleCreateGuide = async () => {
+  try {
+
+    if (!name || !email || !password) {
+      setMessage("❌ All fields are required");
+      return;
+    }
+    
+    // ✅ VALIDATION (CORRECT PLACE)
+    if (!/^[a-zA-Z\s]+$/.test(name)) {
+      setMessage("❌ Name must contain only letters");
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setMessage("❌ Invalid email format");
+      return;
+    }
+
+
+    if (password.length < 6) {
+      setMessage("❌ Password must be at least 6 characters");
+      return;
+    }
+
+    const user = auth.currentUser;
+
+    if (!user) {
+      setMessage("❌ User not logged in");
+      return;
+    }
+
+    setLoading(true);
+    setMessage("");
+
+    const token = await user.getIdToken();
+
+    const res = await fetch("http://localhost:3000/create-guide", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        name,
+        email,
+        password,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      setMessage("✅ Guide created successfully!");
+      await fetchUsers();
+
+      setName("");
+      setEmail("");
+      setPassword("");
+    } else {
+      setMessage("❌ " + data.error);
+    }
+
+    setTimeout(() => {
+      setMessage("");
+    }, 3000);
+
+  } catch (error) {
+    console.error(error);
+    setMessage("❌ Server error");
+  } finally {
+    setLoading(false);
+  }
+};
+
+const handleDelete = async (uid) => {
+
+  try {
+    const user = auth.currentUser;
+    const token = await user.getIdToken();
+
+    const res = await fetch(`http://localhost:3000/delete-guide/${uid}`, {
+      method: "DELETE",
+      headers: {
+        "Authorization": `Bearer ${token}`
+      }
+    });
+
+    const data = await res.json();
+
+  if (data.success) {
+    setMessage("✅ Guide deleted!");
+    await fetchUsers();
+
+    // ⏳ auto disappear
+    setTimeout(() => {
+      setMessage("");
+    }, 3000);
+
+    } else {
+      setMessage("❌ " + data.error);
+    }
+
+  } catch (error) {
+    console.error(error);
+    setMessage("❌ Delete failed");
+  }
+};
+
+  // ===== FILTER USERS =====
+  const guides = users.filter(u => u.role === "guide")
+  const admins = users.filter(u => u.role === "admin")
+
+  // ===== MAIN RENDER =====
   const renderContent = () => {
     switch (activeTab) {
 
-      // ── OVERVIEW TAB ──
+      // ===== DASHBOARD =====
       case 'dashboard':
         return (
           <>
             <SectionTitle title="Admin Overview" subtitle="Sarawak Forestry Corporation Platform" />
 
-            {/* Stat cards in a grid */}
             <div className={styles.statsGrid}>
               {STATS.map((stat, i) => (
                 <div key={i} className={styles.statCard} style={{ '--accent': stat.color }}>
@@ -55,7 +218,6 @@ function AdminDashboard({ activeTab }) {
               ))}
             </div>
 
-            {/* Recent alerts preview */}
             <div className={styles.section}>
               <h3 className={styles.sectionTitle}>Recent Alerts</h3>
               {ALERTS.map((alert, i) => (
@@ -65,100 +227,190 @@ function AdminDashboard({ activeTab }) {
           </>
         )
 
-      // ── GUIDES TAB ──
+      // ===== GUIDES =====
       case 'guides':
         return (
           <>
-            <SectionTitle title="Manage Guides" subtitle="View and monitor all park guides" />
+            <SectionTitle title="Manage Users" subtitle="Create Guides" />
+
+            {/* CREATE GUIDE */}
+            <div className={styles.formRow}>
+
+              <input
+                type="text"
+                placeholder="Name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+
+              <input
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+
+              <input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+
+              <button 
+                className={styles.createBtn}
+                onClick={handleCreateGuide} 
+                disabled={loading}
+              >
+                {loading ? "Creating..." : "➕ Create"}
+              </button>
+
+            </div>
+
+            {/* USER TABLE */}
             <div className={styles.section}>
-              {/* Table showing guide info */}
               <div className={styles.tableWrapper}>
                 <table className={styles.table}>
                   <thead>
                     <tr>
                       <th>Name</th>
-                      <th>Status</th>
-                      <th>Current Module</th>
-                      <th>Progress</th>
+                      <th>Email</th>
+                      <th>Role</th>
+                      <th>Actions</th>
                     </tr>
                   </thead>
+
                   <tbody>
-                    {GUIDES.map((g, i) => (
-                      <tr key={i}>
-                        <td className={styles.guideName}>{g.name}</td>
+
+                    {/* ADMINS */}
+                    <tr>
+                      <td colSpan="4"><strong>🛡️ Admins ({admins.length})</strong></td>
+                    </tr>
+
+                    {admins.map((u) => (
+                      <tr key={u.uid}>
+                        <td>{u.name}</td>
+                        <td>{u.email}</td>
+                        <td>{u.role}</td>
                         <td>
-                          <span className={styles.statusBadge} data-status={g.status.toLowerCase()}>
-                            {g.status}
-                          </span>
-                        </td>
-                        <td>{g.module}</td>
-                        <td>
-                          {/* Progress bar */}
-                          <div className={styles.progressBar}>
-                            <div className={styles.progressFill} style={{ width: `${g.progress}%` }} />
-                          </div>
-                          <span className={styles.progressText}>{g.progress}%</span>
+                          <button disabled className={styles.disabledBtn}>
+                            🔒Protected
+                          </button>
                         </td>
                       </tr>
                     ))}
+
+                    {/* GUIDES */}
+                    <tr>
+                      <td colSpan="4"><strong>👤 Guides ({guides.length})</strong></td>
+                    </tr>
+
+                    {guides.map((u) => (
+                      <tr key={u.uid}>
+                        <td>{u.name}</td>
+                        <td>{u.email}</td>
+                        <td>{u.role}</td>
+                        <td>
+                          <button 
+                              className={styles.deleteBtn}
+                              onClick={() => setDeleteId(u.uid)}
+                            >
+                              🗑 Delete
+                            </button>
+                        </td>
+                      </tr>
+                    ))}
+
                   </tbody>
                 </table>
               </div>
             </div>
-          </>
-        )
 
-      // ── MODULES TAB ──
-      case 'modules':
-        return (
-          <>
-            <SectionTitle title="Training Modules" subtitle="Manage training content for guides" />
-            <div className={styles.moduleGrid}>
-              {['Biodiversity', 'Conservation', 'Eco-tourism', 'Legislation', 'Safety Protocols', 'Wildlife Handling'].map((mod, i) => (
-                <div key={i} className={styles.moduleCard}>
-                  <div className={styles.moduleEmoji}>
-                    {['🦋','🌿','🌍','⚖️','🦺','🐾'][i]}
-                  </div>
-                  <div className={styles.moduleName}>{mod}</div>
-                  <div className={styles.moduleStats}>12 enrolled</div>
-                  <button className={styles.moduleBtn}>Manage →</button>
-                </div>
+           <div className={styles.section}>
+          <h3>Recent Activity</h3>
+
+          {logs.length === 0 ? (
+            <p style={{ opacity: 0.6 }}>No recent activity</p>
+          ) : (
+            <ul className={styles.logList}>
+              {logs.slice(0, 5).map((log) => (
+                <li key={log.id}>
+                  {log.action === "delete_guide" && (
+                    <>🗑 {log.adminName} deleted {log.targetEmail} ({getTimeAgo(log.timestamp)})</>
+                  )}
+                  {log.action === "create_guide" && (
+                    <>➕ {log.adminName} created {log.targetEmail} ({getTimeAgo(log.timestamp)})</>
+                  )}
+                </li>
               ))}
-            </div>
+            </ul>
+          )}
+        </div>
           </>
         )
 
-      // ── ALERTS TAB ──
-      case 'alerts':
-        return (
-          <>
-            <SectionTitle title="Alert Center" subtitle="Real-time AI detection alerts" />
-            <div className={styles.section}>
-              {ALERTS.map((alert, i) => (
-                <AlertRow key={i} alert={alert} expanded />
-              ))}
-            </div>
-          </>
-        )
-
-      // ── DEFAULT (Settings etc.) ──
       default:
         return (
           <div className={styles.emptyState}>
             <div className={styles.emptyIcon}>🚧</div>
             <h3>Coming Soon</h3>
-            <p>This section is under construction.</p>
           </div>
+          
         )
     }
   }
 
-  return <div>{renderContent()}</div>
+    return (
+    <div>
+
+      {/* ✅ CONFIRM BOX (PUT HERE) */}
+      {deleteId && (
+        <div className={styles.confirmBox}>
+          <p>Are you sure you want to delete this guide?</p>
+
+          <button 
+            className={styles.cancelBtn}
+            onClick={() => setDeleteId(null)}
+          >
+            Cancel
+          </button>
+
+          <button 
+            className={styles.deleteBtn}
+            onClick={() => {
+              handleDelete(deleteId);
+              setDeleteId(null);
+            }}
+          >
+            Delete
+          </button>
+        </div>
+      )}
+
+      {/* EXISTING CONTENT */}
+      {renderContent()}
+
+    </div>
+  );
 }
 
-// ── REUSABLE SMALL COMPONENTS ──
+const getTimeAgo = (timestamp) => {
+  if (!timestamp) return "";
 
-// Page title + subtitle at the top of each section
+  const now = new Date();
+  const logTime = new Date(timestamp.seconds * 1000);
+
+  const diff = Math.floor((now - logTime) / 1000);
+
+  if (diff < 60) return "just now";
+  if (diff < 3600) return Math.floor(diff / 60) + " min ago";
+  if (diff < 86400) return Math.floor(diff / 3600) + " hr ago";
+
+  return Math.floor(diff / 86400) + " days ago";
+};
+
+// ===== COMPONENTS =====
+
 function SectionTitle({ title, subtitle }) {
   return (
     <div className={styles.pageHeader}>
@@ -168,9 +420,9 @@ function SectionTitle({ title, subtitle }) {
   )
 }
 
-// A single alert row
-function AlertRow({ alert, expanded }) {
+function AlertRow({ alert }) {
   const colors = { High: '#e63946', Medium: '#f4a261', Low: '#2d6a4f' }
+
   return (
     <div className={styles.alertRow}>
       <div className={styles.alertDot} style={{ background: colors[alert.type] }} />
@@ -182,4 +434,4 @@ function AlertRow({ alert, expanded }) {
   )
 }
 
-export default AdminDashboard
+export default AdminDashboard;

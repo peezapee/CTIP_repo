@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import styles from './Dashboard.module.css'
 
-import { collection, onSnapshot, getDocs } from "firebase/firestore";
+import { collection, onSnapshot, getDocs, query, orderBy } from "firebase/firestore";
 import { db, auth } from "../firebase";
 
 // ===== STATIC UI DATA =====
@@ -61,7 +61,12 @@ useEffect(() => {
 
   if (activeTab !== "guides") return;
 
-  const unsubscribe = onSnapshot(collection(db, "logs"), (snapshot) => {
+  const q = query(
+    collection(db, "logs"),
+    orderBy("timestamp", "desc") 
+  );
+
+  const unsubscribe = onSnapshot(q, (snapshot) => {
     const logList = [];
 
     snapshot.forEach((doc) => {
@@ -71,8 +76,7 @@ useEffect(() => {
       });
     });
 
-    logList.reverse();
-    setLogs(logList);
+    setLogs(logList); 
   });
 
   return () => unsubscribe();
@@ -332,10 +336,10 @@ const handleDelete = async (uid) => {
               {logs.slice(0, 5).map((log) => (
                 <li key={log.id}>
                   {log.action === "delete_guide" && (
-                    <>🗑 Deleted {log.targetEmail} ({getTimeAgo(log.timestamp)})</>
+                    <>🗑 {log.adminName} deleted {log.targetEmail} ({getTimeAgo(log.timestamp)})</>
                   )}
                   {log.action === "create_guide" && (
-                    <>➕ Created {log.targetEmail} ({getTimeAgo(log.timestamp)})</>
+                    <>➕ {log.adminName} created {log.targetEmail} ({getTimeAgo(log.timestamp)})</>
                   )}
                 </li>
               ))}

@@ -92,10 +92,13 @@ app.post("/create-guide", verifyToken, async (req, res) => {
       role: "guide"
     });
 
-    // 📝 LOG CREATE
+    const adminDoc = await db.collection("users").doc(req.user.uid).get();
+    const adminData = adminDoc.data();
+
     await db.collection("logs").add({
     action: "create_guide",
     adminId: req.user.uid,
+    adminName: adminData?.name || "Admin",
     targetUserId: user.uid,
     targetEmail: email,
     timestamp: new Date()
@@ -122,10 +125,15 @@ app.delete("/delete-guide/:uid", verifyToken, async (req, res) => {
     const targetUserDoc = await db.collection("users").doc(uid).get();
     const targetData = targetUserDoc.data();
 
+    // 🔍 GET ADMIN
+    const adminDoc = await db.collection("users").doc(req.user.uid).get();
+    const adminData = adminDoc.data();
+
     // 📝 LOG DELETE
     await db.collection("logs").add({
       action: "delete_guide",
       adminId: req.user.uid,
+      adminName: adminData?.name || "Admin",
       targetUserId: uid,
       targetEmail: targetData?.email || "unknown",
       timestamp: new Date()
@@ -133,7 +141,6 @@ app.delete("/delete-guide/:uid", verifyToken, async (req, res) => {
 
     await admin.auth().deleteUser(uid);
     await db.collection("users").doc(uid).delete();
-
     res.json({ success: true });
 
   } catch (err) {

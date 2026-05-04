@@ -8,7 +8,7 @@ from collections import deque
 from ultralytics import YOLO
 
 # ========== CONFIGURATION ==========
-MODEL_PATH = "innovation_project/last.pt"
+MODEL_PATH = "innovation_project/best.pt"
 CAMERA_ID = 0
 CONFIDENCE_THRESHOLD = 0.9          # minimum confidence to consider a detection
 INFERENCE_EVERY_N_FRAMES = 2        # run classifier every N frames

@@ -10,12 +10,12 @@ from ultralytics import YOLO
 # ========== CONFIGURATION ==========
 MODEL_PATH = "innovation_project/best.pt"
 CAMERA_ID = 0
-CONFIDENCE_THRESHOLD = 0.9          # minimum confidence to consider a detection
+CONFIDENCE_THRESHOLD = 0.95          # minimum confidence for audio alert (only alert classes)
+RECORD_CONFIDENCE_THRESHOLD = 0.99  # minimum confidence to start recording (any class)
 INFERENCE_EVERY_N_FRAMES = 2        # run classifier every N frames
 
 ABNORMAL_CLASS_NAMES = {
     "acalypha_hispida",
-    "animaltrap",
     "asplenium_nidus",
     "bambusa_vulgaris",
     "bougainvillea_spectabilis",
@@ -27,7 +27,6 @@ ABNORMAL_CLASS_NAMES = {
     "coelogyne_nitida",
     "cordyline_fruticosa",
     "couroupita_guianensis",
-    "cuttingtrees",
     "cycas_revoluta",
     "dendrobium_nobile",
     "dipteris_conjugata",
@@ -46,7 +45,6 @@ ABNORMAL_CLASS_NAMES = {
     "nepenthes_rajah",
     "nepenthes_tentaculata",
     "nerium_oleander",
-    "netgun",
     "nypa_fruticans",
     "oleandra_neriiformis",
     "orangutans",
@@ -58,7 +56,6 @@ ABNORMAL_CLASS_NAMES = {
     "phalaenopsis_gigantea",
     "phyllocladus_hypophyllus",
     "piper_nigrum",
-    "plant_picking",
     "polyalthia_longifolia",
     "proboscis",
     "pteridium_aquilinum",
@@ -67,13 +64,20 @@ ABNORMAL_CLASS_NAMES = {
     "sphagnum_cuspidatulum",
 }
 
+ALERT_CLASSES = {                     # only these trigger the beep & red warning
+    "plant_picking",
+    "cuttingtrees",
+    "animaltrap",
+    "netgun"
+}
+
 PRE_DETECT_BUFFER_SEC = 3
 POST_DETECT_RECORD_SEC = 5
 OUTPUT_DIR = "incident_clips"
 SNAPSHOT_DIR = "incident_snapshots"
 LOG_FILE = "incident_log.json"
-ALERT_COOLDOWN = 10
-HEARTBEAT_EVERY_N = 10
+ALERT_COOLDOWN = 5
+HEARTBEAT_EVERY_N = 5
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 os.makedirs(SNAPSHOT_DIR, exist_ok=True)
@@ -110,14 +114,13 @@ frame_buffer = deque(maxlen=buffer_size)
 # ───── State ─────
 writer = None
 recording = False
-last_detection_time = 0
-last_alert_time = 0
+last_detection_time = 0          # last time a recording trigger was active
+last_alert_time = 0              # last time the beep was sounded
 current_clip_path = None
 incident_log = []
 frame_count = 0
 last_top1_name = "?"
 last_top1_conf = 0.0
-last_is_abnormal = False
 
 # ───── Utilities ─────
 def beep_alert():
@@ -130,21 +133,19 @@ def beep_alert():
     threading.Thread(target=_beep, daemon=True).start()
 
 def run_classification(frame):
-    """Return (top1_name, top1_conf, is_abnormal)"""
+    """Return (top1_name, top1_conf)"""
     results = model(frame, verbose=False)
     if not results:
-        return "?", 0.0, False
+        return "?", 0.0
 
     probs = results[0].probs
     if probs is None:
-        return "?", 0.0, False
+        return "?", 0.0
 
     top1_id = int(probs.top1)
     top1_conf = float(probs.top1conf)
     top1_name = CLASS_NAMES.get(top1_id, f"ID_{top1_id}")
-
-    is_abnormal = (top1_conf >= CONFIDENCE_THRESHOLD and top1_name in ABNORMAL_CLASS_NAMES)
-    return top1_name, top1_conf, is_abnormal
+    return top1_name, top1_conf
 
 # ───── Main Loop ─────
 print("[INFO] Running... press Q to quit")
@@ -167,7 +168,7 @@ try:
 
         # Run classifier every N frames
         if frame_count % INFERENCE_EVERY_N_FRAMES == 0:
-            last_top1_name, last_top1_conf, last_is_abnormal = run_classification(frame)
+            last_top1_name, last_top1_conf = run_classification(frame)
 
         # Prepare annotated display frame
         display_frame = frame.copy()
@@ -184,11 +185,17 @@ try:
 
         now = time.time()
 
-        # Abnormal detection logic
-        if last_is_abnormal:
-            last_detection_time = now
+        # ----- Two independent triggers -----
+        # Illegal activity → alert + recording
+        is_alert = (last_top1_conf >= CONFIDENCE_THRESHOLD and last_top1_name in ALERT_CLASSES)
 
-            # Alert print & snapshot (with cooldown)
+        is_rare  = (last_top1_conf >= RECORD_CONFIDENCE_THRESHOLD and last_top1_name in ABNORMAL_CLASS_NAMES)
+
+        # Combined: start/continue recording if either is true
+        should_record = is_alert or is_rare
+
+        # --- Audio alert (only for alert classes) ---
+        if is_alert:
             if now - last_alert_time > ALERT_COOLDOWN:
                 print("\n" + "="*50)
                 print("🚨 REAL-TIME ALERT")
@@ -199,13 +206,21 @@ try:
                 beep_alert()
                 last_alert_time = now
 
-                # 📸 Save annotated snapshot
+                # Save alert snapshot
                 snapshot_name = f"alert_{int(now)}_{last_top1_name}.jpg"
                 snapshot_path = os.path.join(SNAPSHOT_DIR, snapshot_name)
                 cv2.imwrite(snapshot_path, display_frame)
-                print(f"[SNAPSHOT] Saved: {snapshot_path}")
+                print(f"[SNAPSHOT] Alert saved: {snapshot_path}")
 
-            # Start recording if not already
+            # Red warning on screen
+            cv2.putText(display_frame, "⚠ ALERT DETECTED!", (50, 110),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3)
+
+        # --- Recording logic (for both alerts and rare species) ---
+        if should_record:
+            last_detection_time = now   # keep activity timer fresh
+
+            # Start recording if not already active
             if not recording:
                 clip_name = f"incident_{int(now)}.avi"
                 current_clip_path = os.path.join(OUTPUT_DIR, clip_name)
@@ -214,29 +229,35 @@ try:
                     cv2.VideoWriter_fourcc(*'XVID'),
                     fps, (w, h)
                 )
-                recording = True
-                # Write pre‑detection buffer (now annotated frames)
+                # Write pre‑detection buffer
                 for f in frame_buffer:
                     writer.write(f)
+                recording = True
                 print(f"[RECORDING] Started: {current_clip_path}")
 
-            # Draw alert text on screen
-            cv2.putText(display_frame, "⚠ ALERT DETECTED!", (50, 110),
-                        cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3)
+                # Take a general recording-start snapshot
+                if is_alert:
+                    snap_prefix = "alert_recording"
+                else:
+                    snap_prefix = "rare_recording"   # silent event
+                rec_snapshot_name = f"{snap_prefix}_{int(now)}_{last_top1_name}.jpg"
+                rec_snapshot_path = os.path.join(SNAPSHOT_DIR, rec_snapshot_name)
+                cv2.imwrite(rec_snapshot_path, display_frame)
+                print(f"[SNAPSHOT] Recording snapshot saved: {rec_snapshot_path}")
 
-        # Always store annotated frame in buffer (so pre‑alert frames are also annotated)
+        # ----- Store frame in buffer (always annotated) -----
         frame_buffer.append(display_frame.copy())
 
-        # Recording logic
+        # ----- Recording write and stop logic -----
         if recording:
-            writer.write(display_frame)   # record annotated frame
-            if (not last_is_abnormal and
-                    now - last_detection_time > POST_DETECT_RECORD_SEC):
+            writer.write(display_frame)
+            # Stop if no trigger active for POST_DETECT_RECORD_SEC
+            if not should_record and now - last_detection_time > POST_DETECT_RECORD_SEC:
                 writer.release()
                 recording = False
                 print("[INFO] Clip saved:", current_clip_path)
 
-        # Status bar
+        # ----- Status bar -----
         status = "RECORDING" if recording else "MONITORING"
         status_color = (0, 0, 255) if recording else (0, 255, 0)
         cv2.putText(display_frame, status, (10, h - 10),

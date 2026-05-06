@@ -3,152 +3,384 @@ import admin from "firebase-admin";
 import cors from "cors";
 import fs from "fs";
 import rateLimit from "express-rate-limit";
+import { spawn } from "child_process";
 
-// 🔑 load service key
 const serviceAccount = JSON.parse(
   fs.readFileSync("./serviceAccountKey.json")
 );
 
-// 🔥 INIT FIREBASE ADMIN
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
 });
 
 const db = admin.firestore();
-
 const app = express();
+
+const DETECTOR_CWD = "C:/Users/celes/Downloads/COS30049 CTIP/CTIP_repo/innovation_project";
+const DETECTOR_FEED_URL = "http://127.0.0.1:5000/video-feed";
+
 app.use(cors());
 app.use(express.json());
 
 const limiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  max: 20,             // max 20 requests per minute
-  message: { error: "Too many requests, please try again later." }
+  windowMs: 60 * 1000,
+  max: 300,
+  message: {
+    error: "Too many requests, please try again later."
+  }
 });
 
 app.use(limiter);
 
+let detectorProcess = null;
+let detectorLocked = false;
 
-// 🔐 VERIFY TOKEN MIDDLEWARE
 const verifyToken = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
 
     if (!authHeader) {
-      return res.status(401).json({ error: "No token provided" });
+      return res.status(401).json({
+        error: "No token provided"
+      });
     }
 
     const token = authHeader.split(" ")[1];
-
     const decoded = await admin.auth().verifyIdToken(token);
 
-    req.user = decoded; // attach user info
+    req.user = decoded;
     next();
 
   } catch (error) {
-    return res.status(401).json({ error: "Invalid token" });
+    return res.status(401).json({
+      error: "Invalid token"
+    });
   }
 };
 
-// 🔥 CREATE GUIDE API (SECURED)
-app.post("/create-guide", verifyToken, async (req, res) => {
+const loadUserProfile = async (req, res, next) => {
   try {
-    const { email, password, name } = req.body;
+    const userDoc = await db
+      .collection("users")
+      .doc(req.user.uid)
+      .get();
 
-    if (!/^[a-zA-Z\s]+$/.test(name)) {
-        return res.status(400).json({ error: "Invalid name (letters only)" });
+    if (!userDoc.exists) {
+      return res.status(403).json({
+        error: "User not found"
+      });
     }
 
-// ✅ EMAIL VALIDATION
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        return res.status(400).json({ error: "Invalid email format" });
-    }
+    req.userProfile = userDoc.data();
+    next();
 
-    if (!email || !password || !name) {
-        return res.status(400).json({ error: "Missing fields" });
-    }
+  } catch (error) {
+    console.error(error);
 
-    if (password.length < 6) {
-      return res.status(400).json({ error: "Password too weak" });
-    }
-
-    // 🔐 CHECK ADMIN ROLE (MUST BE INSIDE HERE)
-    const userDoc = await db.collection("users").doc(req.user.uid).get();
-
-    if (!userDoc.exists || userDoc.data().role !== "admin") {
-      return res.status(403).json({ error: "Only admin allowed" });
-    }
-
-    // ✅ CREATE AUTH USER
-    const user = await admin.auth().createUser({
-      email,
-      password
+    return res.status(500).json({
+      error: "Server error"
     });
-
-    // ✅ SAVE TO FIRESTORE
-    await db.collection("users").doc(user.uid).set({
-      email,
-      name,
-      role: "guide"
-    });
-
-    const adminDoc = await db.collection("users").doc(req.user.uid).get();
-    const adminData = adminDoc.data();
-
-    await db.collection("logs").add({
-    action: "create_guide",
-    adminId: req.user.uid,
-    adminName: adminData?.name || "Admin",
-    targetUserId: user.uid,
-    targetEmail: email,
-    timestamp: new Date()
-    });
-
-    res.json({ success: true });
-
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Server error" });
   }
-});
+};
 
-app.delete("/delete-guide/:uid", verifyToken, async (req, res) => {
-  try {
-    const { uid } = req.params;
+const requireAdmin = (req, res, next) => {
 
-    const userDoc = await db.collection("users").doc(req.user.uid).get();
-    if (!userDoc.exists || userDoc.data().role !== "admin") {
-      return res.status(403).json({ error: "Only admin allowed" });
+  console.log("ROLE:", req.userProfile?.role);
+
+  if (req.userProfile?.role !== "admin") {
+    return res.status(403).json({
+      error: "Admin only"
+    });
+  }
+
+  next();
+};
+
+const hasMonitorAccess = (role) => role === "admin" || role === "guide";
+const canUserControlDetector = (role) => role === "admin" || (role === "guide" && !detectorLocked);
+
+app.post(
+  "/create-guide",
+  verifyToken,
+  loadUserProfile,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { email, password, name } = req.body;
+
+      if (!email || !password || !name) {
+        return res.status(400).json({
+          error: "Missing fields"
+        });
+      }
+
+      if (!/^[a-zA-Z\s]+$/.test(name)) {
+        return res.status(400).json({
+          error: "Invalid name (letters only)"
+        });
+      }
+
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return res.status(400).json({
+          error: "Invalid email format"
+        });
+      }
+
+      if (password.length < 6) {
+        return res.status(400).json({
+          error: "Password too weak"
+        });
+      }
+
+      const user = await admin.auth().createUser({
+        email,
+        password
+      });
+
+      await db.collection("users").doc(user.uid).set({
+        email,
+        name,
+        role: "guide"
+      });
+
+      await db.collection("logs").add({
+        action: "create_guide",
+        adminId: req.user.uid,
+        adminName: req.userProfile?.name || "Admin",
+        targetUserId: user.uid,
+        targetEmail: email,
+        timestamp: new Date()
+      });
+
+      res.json({
+        success: true
+      });
+
+    } catch (error) {
+      console.error(error);
+
+      res.status(500).json({
+        error: "Server error"
+      });
+    }
+  }
+);
+
+app.delete(
+  "/delete-guide/:uid",
+  verifyToken,
+  loadUserProfile,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { uid } = req.params;
+      const targetUserDoc = await db.collection("users").doc(uid).get();
+      const targetData = targetUserDoc.data();
+
+      await db.collection("logs").add({
+        action: "delete_guide",
+        adminId: req.user.uid,
+        adminName: req.userProfile?.name || "Admin",
+        targetUserId: uid,
+        targetEmail: targetData?.email || "unknown",
+        timestamp: new Date()
+      });
+
+      await admin.auth().deleteUser(uid);
+      await db.collection("users").doc(uid).delete();
+
+      res.json({
+        success: true
+      });
+
+    } catch (error) {
+      console.error(error);
+
+      res.status(500).json({
+        error: "Server error"
+      });
+    }
+  }
+);
+
+app.get(
+  "/detector/status",
+  verifyToken,
+  loadUserProfile,
+  (req, res) => {
+    const role = req.userProfile?.role;
+
+    res.json({
+      running: detectorProcess !== null,
+      feedUrl: DETECTOR_FEED_URL,
+      canControl: canUserControlDetector(role),
+      isLocked: detectorLocked,
+      role
+    });
+  }
+);
+
+app.post(
+  "/detector/lock",
+  verifyToken,
+  loadUserProfile,
+  requireAdmin,
+  (req, res) => {
+
+    detectorLocked = true;
+
+    console.log("LOCKED:", detectorLocked);
+
+    // FORCE STOP RUNNING DETECTOR
+    if (detectorProcess) {
+      detectorProcess.kill("SIGTERM");
+      detectorProcess = null;
     }
 
-    // 🔍 GET TARGET USER
-    const targetUserDoc = await db.collection("users").doc(uid).get();
-    const targetData = targetUserDoc.data();
+    res.json({
+      success: true,
+      message: "Camera locked and detector stopped"
+    });
+  }
+);
 
-    // 🔍 GET ADMIN
-    const adminDoc = await db.collection("users").doc(req.user.uid).get();
-    const adminData = adminDoc.data();
+app.post(
+  "/detector/unlock",
+  verifyToken,
+  loadUserProfile,
+  requireAdmin,
+  (req, res) => {
+    detectorLocked = false;
 
-    // 📝 LOG DELETE
-    await db.collection("logs").add({
-      action: "delete_guide",
-      adminId: req.user.uid,
-      adminName: adminData?.name || "Admin",
-      targetUserId: uid,
-      targetEmail: targetData?.email || "unknown",
-      timestamp: new Date()
+    res.json({
+      success: true,
+      message: "Camera unlocked for guides"
+    });
+  }
+);
+
+app.post(
+  "/detector/start",
+  verifyToken,
+  loadUserProfile,
+  (req, res) => {
+    const role = req.userProfile?.role;
+
+    if (!hasMonitorAccess(role)) {
+      return res.status(403).json({
+        error: "Access denied"
+      });
+    }
+
+    console.log("LOCK STATUS:", detectorLocked);
+
+    if (!canUserControlDetector(role)) {
+      return res.status(403).json({
+        error: "Camera is locked by admin"
+      });
+    }
+
+    if (detectorProcess) {
+      return res.json({
+        success: true,
+        message: "Detector already running"
+      });
+    }
+
+    detectorProcess = spawn(
+      "python",
+      ["abnormal_detector.py"],
+      {
+        cwd: DETECTOR_CWD
+      }
+    );
+
+    detectorProcess.stdout.on("data", (data) => {
+      console.log(`[PYTHON]: ${data}`);
     });
 
-    await admin.auth().deleteUser(uid);
-    await db.collection("users").doc(uid).delete();
-    res.json({ success: true });
+    detectorProcess.stderr.on("data", (data) => {
+      console.error(`[PYTHON ERROR]: ${data}`);
+    });
 
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Server error" });
+    detectorProcess.on("error", (error) => {
+      console.error("Detector failed to start:", error);
+      detectorProcess = null;
+    });
+
+    detectorProcess.on("close", (code) => {
+      console.log(`Detector exited with code ${code}`);
+      detectorProcess = null;
+    });
+
+    res.json({
+      success: true,
+      message: "Detector started"
+    });
   }
+);
+
+app.delete(
+  "/detector/stop",
+  verifyToken,
+  loadUserProfile,
+  (req, res) => {
+    const role = req.userProfile?.role;
+
+    if (!hasMonitorAccess(role)) {
+      return res.status(403).json({
+        error: "Access denied"
+      });
+    }
+
+    if (!canUserControlDetector(role)) {
+      return res.status(403).json({
+        error: "Camera is locked by admin"
+      });
+    }
+
+    if (!detectorProcess) {
+      return res.json({
+        success: true,
+        message: "Detector not running"
+      });
+    }
+
+    detectorProcess.kill("SIGTERM");
+    detectorProcess = null;
+
+    res.json({
+      success: true,
+      message: "Detector stopped"
+    });
+  }
+);
+
+app.get(
+  "/video-feed",
+  verifyToken,
+  loadUserProfile,
+  (req, res) => {
+    res.json({
+      url: DETECTOR_FEED_URL
+    });
+  }
+);
+
+app.use(
+  "/incident_clips",
+  express.static(
+    "C:/Users/celes/Downloads/COS30049 CTIP/CTIP_repo/innovation_project/incident_clips"
+  )
+);
+
+app.use(
+  "/incident_snapshots",
+  express.static(
+    "C:/Users/celes/Downloads/COS30049 CTIP/CTIP_repo/innovation_project/incident_snapshots"
+  )
+);
+
+app.listen(3000, () => {
+  console.log("Server running on port 3000");
 });
-
-// 🚀 START SERVER
-app.listen(3000, () => console.log("Server running on port 3000"));
-

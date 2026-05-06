@@ -6,6 +6,9 @@ import styles from './Dashboard.module.css'
 import { collection, onSnapshot, getDocs, query, orderBy } from "firebase/firestore";
 import { db, auth } from "../firebase";
 
+import AdminMonitoringPanel from './AdminMonitoringPanel';
+
+
 // ===== STATIC UI DATA =====
 const STATS = [
   { label: 'Total Guides', value: '24', icon: '👥', trend: '+2 this month', color: '#2d6a4f' },
@@ -226,6 +229,10 @@ const handleDelete = async (uid) => {
             </div>
           </>
         )
+
+        
+      case 'monitor':
+        return <AdminMonitoringPanel />;
 
       // ===== GUIDES =====
       case 'guides':

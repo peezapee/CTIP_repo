@@ -2,23 +2,23 @@ import React from 'react'
 import styles from './Sidebar.module.css'
 
 const ADMIN_TABS = [
-  { id: 'dashboard',  icon: '📊', label: 'Overview' },
-  { id: 'guides',     icon: '👥', label: 'Manage Guides' },
-  { id: 'modules',    icon: '📚', label: 'Training Modules' },
-  { id: 'alerts',     icon: '🔔', label: 'Alerts' },
-  { id: 'settings',   icon: '⚙️', label: 'Settings' },
+  { id: 'dashboard', icon: '📊', label: 'Overview' },
+  { id: 'guides',    icon: '👥', label: 'Manage Guides' },
+  { id: 'modules',   icon: '📚', label: 'Training Modules' },
+  { id: 'monitor',   icon: '📷', label: 'AI Monitor' },
+  { id: 'alerts',    icon: '🔔', label: 'Alerts' },
+  { id: 'settings',  icon: '⚙️', label: 'Settings' },
 ]
 
 const GUIDE_TABS = [
   { id: 'dashboard',   icon: '🏠', label: 'My Dashboard' },
   { id: 'training',    icon: '📖', label: 'My Training' },
   { id: 'certificate', icon: '🎖️', label: 'Certificates' },
+  { id: 'monitor',     icon: '📷', label: 'My Monitor' },
   { id: 'alerts',      icon: '🔔', label: 'Notifications' },
 ]
 
 function Sidebar({ user, activeTab, onTabChange, onLogout, isOpen }) {
-
-  // 🔥 SAFE FALLBACKS
   const role = user?.role || 'guide'
   const name = user?.name || user?.email || 'User'
 
@@ -26,7 +26,6 @@ function Sidebar({ user, activeTab, onTabChange, onLogout, isOpen }) {
 
   return (
     <aside className={`${styles.sidebar} ${isOpen ? styles.open : ''}`}>
-
       <div className={styles.brand}>
         <span className={styles.brandIcon}>🌿</span>
         <div>
@@ -52,7 +51,7 @@ function Sidebar({ user, activeTab, onTabChange, onLogout, isOpen }) {
       <nav className={styles.nav}>
         <p className={styles.navLabel}>MENU</p>
 
-        {tabs.map(tab => (
+        {tabs.map((tab) => (
           <button
             key={tab.id}
             className={`${styles.navItem} ${activeTab === tab.id ? styles.active : ''}`}
@@ -74,7 +73,6 @@ function Sidebar({ user, activeTab, onTabChange, onLogout, isOpen }) {
           <span>Logout</span>
         </button>
       </div>
-
     </aside>
   )
 }

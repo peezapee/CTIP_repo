@@ -9,6 +9,9 @@
 import React, { useState } from 'react'
 import styles from './Dashboard.module.css'
 
+import MonitorPanel from './MonitorPanel'
+
+
 // Fake training modules for the guide
 const MY_MODULES = [
   { name: 'Biodiversity Basics',     progress: 100, status: 'Completed',  emoji: '🦋' },
@@ -166,6 +169,9 @@ function GuideDashboard({ activeTab, user }) {
             </div>
           </>
         )
+
+      case 'monitor':
+        return <MonitorPanel />
 
       default:
         return (

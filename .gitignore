@@ -24,3 +24,4 @@ dist-ssr
 *.sw?
 
 server/serviceAccountKey.json
+innovation_project/firebase_admin-key.json

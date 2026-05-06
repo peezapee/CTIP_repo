@@ -304,3 +304,124 @@
   max-height: 150px;
   overflow-y: auto;
 }
+
+.monitorHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.monitorBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.monitorBadge[data-state="running"] {
+  background: #e8fff1;
+  color: #1b5e20;
+  border: 1px solid #7fd39b;
+}
+
+.monitorBadge[data-state="stopped"] {
+  background: #fff1f2;
+  color: #b42318;
+  border: 1px solid #fda29b;
+}
+
+.monitorFrame {
+  margin-top: 16px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #081c15;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.monitorImage {
+  display: block;
+  width: 100%;
+  min-height: 320px;
+  object-fit: cover;
+  background: #000;
+}
+
+.monitorPlaceholder {
+  min-height: 320px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+  color: rgba(255, 255, 255, 0.82);
+  background:
+    linear-gradient(135deg, rgba(45, 106, 79, 0.9), rgba(8, 28, 21, 0.96)),
+    radial-gradient(circle at top right, rgba(233, 196, 106, 0.22), transparent 45%);
+}
+
+.monitorNote {
+  margin: 10px 0 0;
+  color: #5f6c67;
+  line-height: 1.5;
+}
+
+.monitorMessage {
+  margin-top: 12px;
+  font-weight: 600;
+  color: #1b4332;
+}
+
+.monitorError {
+  margin-top: 12px;
+  color: #b42318;
+  font-weight: 600;
+}
+
+.monitorLockNotice {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #fff6e5;
+  border: 1px solid #f5d48b;
+  color: #8a5b00;
+  font-weight: 600;
+}
+
+.monitorList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.monitorListItem {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: #f8fbf9;
+  border: 1px solid #e3ece7;
+}
+
+.monitorListMeta {
+  margin-top: 4px;
+  color: #667771;
+  font-size: 0.92rem;
+}
+
+.monitorEvidenceTag {
+  flex-shrink: 0;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #edf6ff;
+  color: #245c9f;
+  font-size: 0.82rem;
+  font-weight: 600;
+}

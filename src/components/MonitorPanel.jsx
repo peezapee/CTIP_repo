@@ -15,6 +15,7 @@ function MonitorPanel() {
   })
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
+  const [adminOnlyMessage, setAdminOnlyMessage] = useState('')
   const [statusError, setStatusError] = useState('')
   const [feedReloadKey, setFeedReloadKey] = useState(0)
 
@@ -197,6 +198,108 @@ function MonitorPanel() {
         {message && (
           <p className={styles.monitorMessage}>{message}</p>
         )}
+        
+        <div className={styles.section}>
+          <h3 className={styles.sectionTitle}>
+            Restricted Administrative Features
+          </h3>
+
+          <p className={styles.monitorNote}>
+            These features exist in the system but require administrator privileges.
+          </p>
+
+          <div className={styles.tableWrapper}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>Feature</th>
+                  <th>Status</th>
+                  <th>Access</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                <tr>
+                  <td>Incident Evidence</td>
+                  <td>🔒 Protected</td>
+                  <td>
+                    <button
+                      className={styles.deleteBtn}
+                      title="Admin only"
+                      style={{ cursor: 'not-allowed' }}
+                      onClick={() => {
+                        setAdminOnlyMessage(
+                          'Access Denied — Administrator privileges required.'
+                        )
+
+                        setTimeout(() => {
+                          setAdminOnlyMessage('')
+                        }, 3000)
+                      }}
+                    >
+                        View Evidence
+                      </button>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td>Activity Logs</td>
+                  <td>🔒 Protected</td>
+                  <td>
+                    <button
+                      className={styles.deleteBtn}
+                      title="Admin only"
+                      style={{ cursor: 'not-allowed' }}
+                      onClick={() => {
+                        setAdminOnlyMessage(
+                          'Access Denied — Administrator privileges required.'
+                        )
+
+                        setTimeout(() => {
+                          setAdminOnlyMessage('')
+                        }, 3000)
+                      }}
+                    >
+                      View Logs
+                    </button>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td>User Management</td>
+                  <td>🔒 Protected</td>
+                  <td>
+                    <button
+                      className={styles.deleteBtn}
+                      title="Admin only"
+                      style={{ cursor: 'not-allowed' }}
+                      onClick={() => {
+                        setAdminOnlyMessage(
+                          'Access Denied — Administrator privileges required.'
+                        )
+
+                        setTimeout(() => {
+                          setAdminOnlyMessage('')
+                        }, 3000)
+                      }}
+                    >
+                      Manage Users
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          {adminOnlyMessage && (
+          <p
+            className={styles.monitorError}
+            style={{ marginTop: '12px' }}
+          >
+            {adminOnlyMessage}
+          </p>
+        )}
+        </div>
       </div>
     </div>
   )

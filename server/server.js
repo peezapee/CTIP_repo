@@ -4,6 +4,7 @@ import cors from "cors";
 import fs from "fs";
 import rateLimit from "express-rate-limit";
 import { spawn } from "child_process";
+import path from "path";
 
 const serviceAccount = JSON.parse(
   fs.readFileSync("./serviceAccountKey.json")
@@ -367,18 +368,38 @@ app.get(
   }
 );
 
-app.use(
-  "/incident_clips",
-  express.static(
-    "C:/Users/celes/Downloads/COS30049 CTIP/CTIP_repo/innovation_project/incident_clips"
-  )
+app.get(
+  "/incident_snapshots/:file",
+  verifyToken,
+  loadUserProfile,
+  requireAdmin,
+  (req, res) => {
+
+    const filePath = path.join(
+      DETECTOR_CWD,
+      "incident_snapshots",
+      req.params.file
+    );
+
+    res.sendFile(filePath);
+  }
 );
 
-app.use(
-  "/incident_snapshots",
-  express.static(
-    "C:/Users/celes/Downloads/COS30049 CTIP/CTIP_repo/innovation_project/incident_snapshots"
-  )
+app.get(
+  "/incident_clips/:file",
+  verifyToken,
+  loadUserProfile,
+  requireAdmin,
+  (req, res) => {
+
+    const filePath = path.join(
+      DETECTOR_CWD,
+      "incident_clips",
+      req.params.file
+    );
+
+    res.sendFile(filePath);
+  }
 );
 
 app.listen(3000, () => {

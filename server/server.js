@@ -368,38 +368,20 @@ app.get(
   }
 );
 
-app.get(
-  "/incident_snapshots/:file",
-  verifyToken,
-  loadUserProfile,
-  requireAdmin,
-  (req, res) => {
 
-    const filePath = path.join(
-      DETECTOR_CWD,
-      "incident_snapshots",
-      req.params.file
-    );
 
-    res.sendFile(filePath);
-  }
+app.use(
+  "/incident_clips",
+  express.static(
+    "C:/Users/celes/Downloads/COS30049 CTIP/CTIP_repo/innovation_project/incident_clips"
+  )
 );
 
-app.get(
-  "/incident_clips/:file",
-  verifyToken,
-  loadUserProfile,
-  requireAdmin,
-  (req, res) => {
-
-    const filePath = path.join(
-      DETECTOR_CWD,
-      "incident_clips",
-      req.params.file
-    );
-
-    res.sendFile(filePath);
-  }
+app.use(
+  "/incident_snapshots",
+  express.static(
+    "C:/Users/celes/Downloads/COS30049 CTIP/CTIP_repo/innovation_project/incident_snapshots"
+  )
 );
 
 app.listen(3000, () => {

@@ -368,7 +368,59 @@ app.get(
   }
 );
 
+// ===== SET ADMIN ROLE =====
+app.post(
+  "/set-admin-role",
+  verifyToken,
+  loadUserProfile,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { email } = req.body;
 
+      if (!email) {
+        return res.status(400).json({
+          error: "Email required"
+        });
+      }
+
+      // Get user by email
+      const user = await admin.auth().getUserByEmail(email);
+
+      // Set custom claims
+      await admin.auth().setCustomUserClaims(user.uid, {
+        role: 'admin'
+      });
+
+      // Update Firestore user document
+      await db.collection("users").doc(user.uid).update({
+        role: "admin"
+      });
+
+      // Log the action
+      await db.collection("logs").add({
+        action: "set_admin_role",
+        adminId: req.user.uid,
+        adminName: req.userProfile?.name || "Admin",
+        targetUserId: user.uid,
+        targetEmail: email,
+        timestamp: new Date()
+      });
+
+      res.json({
+        success: true,
+        message: `Admin role set for ${email}`
+      });
+
+    } catch (error) {
+      console.error(error);
+
+      res.status(500).json({
+        error: error.message || "Server error"
+      });
+    }
+  }
+);
 
 app.use(
   "/incident_clips",

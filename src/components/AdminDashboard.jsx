@@ -7,6 +7,10 @@ import { collection, onSnapshot, getDocs, query, orderBy } from "firebase/firest
 import { db, auth } from "../firebase";
 
 import AdminMonitoringPanel from './AdminMonitoringPanel';
+import TrainingModuleManager from './TrainingModuleManager';
+import GuideEnrollment from './GuideEnrollment';
+import ProgressTracking from './ProgressTracking';
+import CertificateManager from './CertificateManager';
 
 
 // ===== STATIC UI DATA =====
@@ -208,24 +212,90 @@ const handleDelete = async (uid) => {
       case 'dashboard':
         return (
           <>
-            <SectionTitle title="Admin Overview" subtitle="Sarawak Forestry Corporation Platform" />
+            <div className={styles.pageHeader}>
+              <h2 className={styles.pageTitle}>📊 Admin Overview</h2>
+              <p className={styles.pageSub}>Sarawak Forestry Corporation Platform</p>
+            </div>
 
+            {/* Key Metrics Grid */}
             <div className={styles.statsGrid}>
               {STATS.map((stat, i) => (
                 <div key={i} className={styles.statCard} style={{ '--accent': stat.color }}>
-                  <div className={styles.statIcon}>{stat.icon}</div>
-                  <div className={styles.statValue}>{stat.value}</div>
-                  <div className={styles.statLabel}>{stat.label}</div>
-                  <div className={styles.statTrend}>{stat.trend}</div>
+                  <div className={styles.statCardInner}>
+                    <div className={styles.statIcon}>{stat.icon}</div>
+                    <div className={styles.statContent}>
+                      <div className={styles.statLabel}>{stat.label}</div>
+                      <div className={styles.statValue}>{stat.value}</div>
+                      <div className={styles.statTrend}>🔹 {stat.trend}</div>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
 
-            <div className={styles.section}>
-              <h3 className={styles.sectionTitle}>Recent Alerts</h3>
-              {ALERTS.map((alert, i) => (
-                <AlertRow key={i} alert={alert} />
-              ))}
+            {/* Alerts & Quick Links Row */}
+            <div className={styles.dashboardRow}>
+              {/* Recent Alerts */}
+              <div className={styles.dashboardCard}>
+                <div className={styles.cardHeader}>
+                  <h3>🚨 Recent Alerts</h3>
+                  <span className={styles.badge} style={{ background: '#e63946' }}>5 Today</span>
+                </div>
+                <div className={styles.alertList}>
+                  {ALERTS.map((alert, i) => (
+                    <div key={i} className={styles.alertItem} style={{ borderLeft: `4px solid ${alert.type === 'High' ? '#e63946' : alert.type === 'Medium' ? '#f77f00' : '#06a77d'}` }}>
+                      <div className={styles.alertMeta}>
+                        <span className={styles.alertTime}>{alert.time}</span>
+                        <span className={`${styles.alertType} ${styles[`type${alert.type}`]}`}>{alert.type}</span>
+                      </div>
+                      <p className={styles.alertMsg}>{alert.msg}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Quick Actions */}
+              <div className={styles.dashboardCard}>
+                <div className={styles.cardHeader}>
+                  <h3>⚡ Quick Actions</h3>
+                </div>
+                <div className={styles.actionGrid}>
+                  <button className={styles.actionBtn} style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
+                    <span className={styles.actionIcon}>📚</span>
+                    <span>Create Module</span>
+                  </button>
+                  <button className={styles.actionBtn} style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' }}>
+                    <span className={styles.actionIcon}>✍️</span>
+                    <span>Enroll Guide</span>
+                  </button>
+                  <button className={styles.actionBtn} style={{ background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' }}>
+                    <span className={styles.actionIcon}>📊</span>
+                    <span>View Progress</span>
+                  </button>
+                  <button className={styles.actionBtn} style={{ background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)' }}>
+                    <span className={styles.actionIcon}>🎖️</span>
+                    <span>Manage Certs</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* System Health & Summary */}
+            <div className={styles.summaryCard}>
+              <div className={styles.summaryGrid}>
+                <div className={styles.summaryItem}>
+                  <span className={styles.summaryLabel}>👥 Active Guides</span>
+                  <span className={styles.summaryValue}>{guides.length}</span>
+                </div>
+                <div className={styles.summaryItem}>
+                  <span className={styles.summaryLabel}>🛡️ Admins</span>
+                  <span className={styles.summaryValue}>{admins.length}</span>
+                </div>
+                <div className={styles.summaryItem}>
+                  <span className={styles.summaryLabel}>⚙️ System Status</span>
+                  <span className={styles.summaryValue} style={{ color: '#06a77d' }}>✅ Operational</span>
+                </div>
+              </div>
             </div>
           </>
         )
@@ -233,6 +303,18 @@ const handleDelete = async (uid) => {
         
       case 'monitor':
         return <AdminMonitoringPanel />;
+
+      case 'modules':
+        return <TrainingModuleManager />;
+
+      case 'enrollment':
+        return <GuideEnrollment />;
+
+      case 'progress':
+        return <ProgressTracking />;
+
+      case 'certificate':
+        return <CertificateManager isAdmin={true} />;
 
       // ===== GUIDES =====
       case 'guides':

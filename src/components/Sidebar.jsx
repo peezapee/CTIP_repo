@@ -16,9 +16,31 @@ const TABS = [
   },
 
   {
+    id: 'modules',
+    icon: '📚',
+    label: 'Training Modules',
+    adminOnly: true,
+  },
+
+  {
+    id: 'enrollment',
+    icon: '✍️',
+    label: 'Enroll Guides',
+    adminOnly: true,
+  },
+
+  {
+    id: 'progress',
+    icon: '📊',
+    label: 'Track Progress',
+    adminOnly: true,
+  },
+
+  {
     id: 'training',
     icon: '📚',
-    label: 'Training',
+    label: 'My Courses',
+    guideOnly: true,
   },
 
   {
@@ -106,7 +128,13 @@ function Sidebar({
           MENU
         </p>
 
-        {TABS.map((tab) => (
+        {TABS.filter((tab) => {
+          // Hide admin-only tabs from guides
+          if (tab.adminOnly && role !== 'admin') return false
+          // Hide guide-only tabs from admins
+          if (tab.guideOnly && role !== 'guide') return false
+          return true
+        }).map((tab) => (
 
           <button
             key={tab.id}
@@ -118,38 +146,11 @@ function Sidebar({
             }`}
 
             onClick={() => {
-
-              if (
-                tab.adminOnly &&
-                role !== 'admin'
-              ) {
-
-                setAccessMessage(
-                'Access Denied — Administrator privileges required.'
-              )
-
-              setTimeout(() => {
-                setAccessMessage('')
-              }, 3000)
-
-                return
-              }
-
               onTabChange(tab.id)
             }}
 
             style={{
-              cursor:
-                tab.adminOnly &&
-                role !== 'admin'
-                  ? 'not-allowed'
-                  : 'pointer',
-
-              opacity:
-                tab.adminOnly &&
-                role !== 'admin'
-                  ? 0.7
-                  : 1
+              cursor: 'pointer'
             }}
           >
 
@@ -160,14 +161,6 @@ function Sidebar({
             <span className={styles.navLabel2}>
               {tab.label}
             </span>
-
-            {tab.adminOnly &&
-             role !== 'admin' && (
-
-              <span className={styles.badge}>
-                🔒
-              </span>
-            )}
 
             {tab.id === 'alerts' &&
              role === 'admin' && (

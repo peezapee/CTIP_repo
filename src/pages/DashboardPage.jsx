@@ -63,10 +63,32 @@ function DashboardPage({ user, onLogout }) {
 
         {/* Content */}
         <div className={styles.content}>
-          {role === 'admin'
-            ? <AdminDashboard activeTab={activeTab} />
-            : <GuideDashboard activeTab={activeTab} user={user} />
-          }
+          {role === 'admin' ? (
+
+  <AdminDashboard activeTab={activeTab} />
+
+) : (
+
+  <>
+    {/* block admin tabs */}
+    {['guides', 'modules', 'settings'].includes(activeTab) ? (
+
+      <div>
+        <h1>Access Denied</h1>
+        <p>You do not have permission to access this page.</p>
+      </div>
+
+    ) : (
+
+      <GuideDashboard
+        activeTab={activeTab}
+        user={user}
+      />
+
+    )}
+  </>
+
+)}
         </div>
 
       </div>

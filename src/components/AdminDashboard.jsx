@@ -212,11 +212,6 @@ const handleDelete = async (uid) => {
       case 'dashboard':
         return (
           <>
-            <div className={styles.pageHeader}>
-              <h2 className={styles.pageTitle}>📊 Admin Overview</h2>
-              <p className={styles.pageSub}>Sarawak Forestry Corporation Platform</p>
-            </div>
-
             {/* Key Metrics Grid */}
             <div className={styles.statsGrid}>
               {STATS.map((stat, i) => (

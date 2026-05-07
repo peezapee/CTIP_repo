@@ -49,11 +49,6 @@ function GuideDashboard({ activeTab, user }) {
 
         return (
           <>
-            <div className={styles.pageHeader}>
-              <h2 className={styles.pageTitle}>📊 My Dashboard</h2>
-              <p className={styles.pageSub}>Track your training progress and certifications</p>
-            </div>
-
             {/* Welcome Banner */}
             <div className={styles.welcomeBanner}>
               <div className={styles.bannerContent}>

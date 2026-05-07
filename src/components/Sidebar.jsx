@@ -34,13 +34,6 @@ const TABS = [
   },
 
   {
-    id: 'alerts',
-    icon: '🔔',
-    label: 'Alerts',
-    adminOnly: true,
-  },
-
-  {
     id: 'settings',
     icon: '⚙️',
     label: 'Settings',

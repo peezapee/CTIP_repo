@@ -12,9 +12,9 @@ function DashboardPage({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('dashboard')
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
-  // 🔥 Seed training modules on component mount
+  // 🔥 Seed training modules on component mount (DISABLED - use UI instead)
   useEffect(() => {
-    seedModules(db)
+    // seedModules(db) - Disabled, create modules via admin UI
   }, [])
 
   // 🔥 SAFE FALLBACKS (prevents crash)
@@ -90,6 +90,7 @@ function DashboardPage({ user, onLogout }) {
       <GuideDashboard
         activeTab={activeTab}
         user={user}
+        onTabChange={setActiveTab}
       />
 
     )}

@@ -144,24 +144,28 @@ export const seedModules = async (db) => {
   const { collection, addDoc, getDocs, query } = await import('firebase/firestore');
   
   try {
-    // Check if modules already exist
+    // Get existing modules
     const snapshot = await getDocs(collection(db, 'trainingModules'));
+    const existingTitles = snapshot.docs.map(doc => doc.data().title);
     
-    if (snapshot.size > 0) {
-      console.log('✅ Modules already seeded. Count:', snapshot.size);
-      return;
-    }
-
-    // Add all modules
+    // Only add modules that don't already exist
+    let addedCount = 0;
     for (const module of trainingModulesSeed) {
-      await addDoc(collection(db, 'trainingModules'), {
-        ...module,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      });
+      if (!existingTitles.includes(module.title)) {
+        await addDoc(collection(db, 'trainingModules'), {
+          ...module,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+        addedCount++;
+      }
     }
 
-    console.log('✅ Successfully seeded', trainingModulesSeed.length, 'training modules');
+    if (addedCount > 0) {
+      console.log('✅ Added', addedCount, 'new training modules');
+    } else {
+      console.log('✅ All modules already exist');
+    }
   } catch (error) {
     console.error('❌ Error seeding modules:', error);
   }

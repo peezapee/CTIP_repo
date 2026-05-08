@@ -15,11 +15,12 @@ function TrainingModuleManager() {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    category: 'conservation', // conservation, biodiversity, eco-tourism, legislation, safety
-    duration: 30, // in minutes
+    category: 'conservation',
+    duration: 30,
     videoUrl: '',
     content: '',
-    passingScore: 70, // percentage to pass
+    passingScore: 70,
+    questions: '[]', // JSON array of questions
   })
 
   // Fetch modules
@@ -100,6 +101,7 @@ function TrainingModuleManager() {
       videoUrl: module.videoUrl,
       content: module.content,
       passingScore: module.passingScore,
+      questions: typeof module.questions === 'string' ? module.questions : JSON.stringify(module.questions || []),
     })
     setEditingId(module.id)
     setShowForm(true)
@@ -234,6 +236,20 @@ function TrainingModuleManager() {
               />
             </div>
 
+            <div className={styles.formGroup}>
+              <label>Quiz Questions (JSON Format)</label>
+              <textarea
+                name="questions"
+                value={formData.questions}
+                onChange={handleInputChange}
+                placeholder={'[{"question":"What is...?","options":["A","B","C","D"],"correctAnswer":0}]'}
+                rows="8"
+              />
+              <small style={{ color: '#666', marginTop: '5px', display: 'block' }}>
+                Format: JSON array with question objects. Each question needs: question (string), options (array), correctAnswer (0-3)
+              </small>
+            </div>
+
             <div className={styles.formActions}>
               <button type="submit" disabled={loading} className={styles.primaryBtn}>
                 {loading ? '⏳ Saving...' : editingId ? '✏️ Update Module' : '✅ Create Module'}
@@ -251,6 +267,7 @@ function TrainingModuleManager() {
                     videoUrl: '',
                     content: '',
                     passingScore: 70,
+                    questions: '[]',
                   })
                 }}
                 className={styles.secondaryBtn}

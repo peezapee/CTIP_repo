@@ -18,14 +18,17 @@ function CertificateManager({ userId, isAdmin = false }) {
     fetchCertificates()
     fetchEnrollments()
     fetchModules()
-    if (isAdmin) fetchGuides()
+    fetchGuides()
   }, [userId, isAdmin])
 
   const fetchCertificates = async () => {
     try {
       const querySnapshot = await getDocs(collection(db, 'certificates'))
       const allCerts = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      console.log('All certificates in DB:', allCerts)
+      console.log('Current userId:', userId)
       const certList = isAdmin ? allCerts : allCerts.filter(c => c.guideId === userId)
+      console.log('Filtered certificates for user:', certList)
       setCertificates(certList)
     } catch (error) {
       console.error('Error fetching certificates:', error)
@@ -161,9 +164,7 @@ function CertificateManager({ userId, isAdmin = false }) {
                   <button 
                     className={styles.primaryBtn}
                     onClick={() => {
-                      const guideName = isAdmin 
-                        ? guides.find(g => g.uid === cert.guideId)?.name || 'Guide'
-                        : 'You';
+                      const guideName = guides.find(g => g.uid === cert.guideId)?.name || 'Guide';
                       generateCertificatePDF(cert, guideName);
                     }}
                   >

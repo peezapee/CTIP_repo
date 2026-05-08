@@ -5,47 +5,114 @@
 // Props:
 //   activeTab = which sidebar tab is active
 //   user      = the logged-in guide's info
+//   onTabChange = function to change the active tab
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+import { collection, getDocs, query, where } from 'firebase/firestore'
+import { db } from '../firebase.js'
 import styles from './Dashboard.module.css'
 
 import MonitorPanel from './MonitorPanel'
 import GuideCourseList from './GuideCourseList'
 import CertificateManager from './CertificateManager'
 
+function GuideDashboard({ activeTab, user, onTabChange }) {
+  const [enrollments, setEnrollments] = useState([])
+  const [modules, setModules] = useState([])
+  const [certificates, setCertificates] = useState([])
+  const [loading, setLoading] = useState(false)
 
-// Fake training modules for the guide
-const MY_MODULES = [
-  { name: 'Biodiversity Basics',     progress: 100, status: 'Completed',  emoji: '🦋' },
-  { name: 'Conservation Principles', progress: 75,  status: 'In Progress', emoji: '🌿' },
-  { name: 'Eco-Tourism Practices',   progress: 40,  status: 'In Progress', emoji: '🌍' },
-  { name: 'Safety Protocols',        progress: 0,   status: 'Not Started', emoji: '🦺' },
-  { name: 'Park Legislation',        progress: 0,   status: 'Not Started', emoji: '⚖️' },
-]
+  useEffect(() => {
+    if (user?.uid) {
+      fetchEnrollments()
+      fetchCertificates()
+    }
+    fetchModules()
+  }, [user?.uid])
 
-// Fake certifications
-const MY_CERTS = [
-  { name: 'Biodiversity Level 1', date: 'Issued: Jan 2025',  expires: 'Jan 2027', valid: true  },
-  { name: 'Safety Basic Training', date: 'Issued: Mar 2024', expires: 'Mar 2025', valid: false },
-]
+  const fetchModules = async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, 'trainingModules'))
+      const moduleList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      setModules(moduleList)
+    } catch (error) {
+      console.error('Error fetching modules:', error)
+    }
+  }
 
-// Fake notifications
-const NOTIFICATIONS = [
-  { msg: 'New module available: Wildlife Ethics',       time: '2h ago',      icon: '📚' },
-  { msg: 'Your Safety certification has expired',       time: '1 day ago',   icon: '⚠️' },
-  { msg: 'Completed: Biodiversity Basics — great work!', time: '3 days ago', icon: '✅' },
-]
+  const fetchEnrollments = async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, 'enrollments'))
+      const enrollmentList = querySnapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter(e => e.guideId === user?.uid)
+      setEnrollments(enrollmentList)
+    } catch (error) {
+      console.error('Error fetching enrollments:', error)
+    }
+  }
 
-function GuideDashboard({ activeTab, user }) {
+  const fetchCertificates = async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, 'certificates'))
+      const certList = querySnapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter(c => c.guideId === user?.uid)
+      setCertificates(certList)
+    } catch (error) {
+      console.error('Error fetching certificates:', error)
+    }
+  }
+
+  const getModuleInfo = (moduleId) => {
+    return modules.find(m => m.id === moduleId)
+  }
+
+  const getCategoryEmoji = (category) => {
+    const categoryEmoji = {
+      conservation: '🌍',
+      biodiversity: '🦋',
+      'eco-tourism': '🌿',
+      legislation: '⚖️',
+      safety: '🦺',
+    }
+    return categoryEmoji[category] || '📚'
+  }
+
+  const getEnrollmentProgress = (enrollment) => {
+    if (enrollment.status === 'passed') return 100
+    if (enrollment.status === 'failed') return 50
+    if (enrollment.progress) return enrollment.progress
+    return 0
+  }
+
+  const getStatusLabel = (enrollment) => {
+    if (enrollment.status === 'passed') return 'Completed'
+    if (enrollment.status === 'failed') return 'Failed'
+    if (enrollment.progress === 100) return 'In Progress'
+    return 'Not Started'
+  }
+
+  const handleStartNextModule = () => {
+    if (onTabChange) {
+      onTabChange('training')
+    }
+  }
+
+  const isExpired = (expiryDate) => {
+    return new Date(expiryDate) < new Date()
+  }
 
   const renderContent = () => {
     switch (activeTab) {
 
       // ── MY DASHBOARD TAB ──
       case 'dashboard':
-        const completed = MY_MODULES.filter(m => m.status === 'Completed').length
-        const total     = MY_MODULES.length
-        const overallProgress = Math.round((completed / total) * 100)
+        const completed = enrollments.filter(e => e.status === 'passed').length
+        const total = enrollments.length
+        const overallProgress = total > 0 ? Math.round((completed / total) * 100) : 0
+        const validCerts = certificates.filter(c => !isExpired(c.expiresAt)).length
+        const expiredCerts = certificates.filter(c => isExpired(c.expiresAt)).length
 
         return (
           <>
@@ -94,7 +161,7 @@ function GuideDashboard({ activeTab, user }) {
                   <div className={styles.statIcon}>🎖️</div>
                   <div className={styles.statContent}>
                     <div className={styles.statLabel}>Valid Certs</div>
-                    <div className={styles.statValue}>1</div>
+                    <div className={styles.statValue}>{validCerts}</div>
                     <div className={styles.statTrend}>🔹 Earn more!</div>
                   </div>
                 </div>
@@ -104,7 +171,7 @@ function GuideDashboard({ activeTab, user }) {
                   <div className={styles.statIcon}>⚠️</div>
                   <div className={styles.statContent}>
                     <div className={styles.statLabel}>Expired Certs</div>
-                    <div className={styles.statValue}>1</div>
+                    <div className={styles.statValue}>{expiredCerts}</div>
                     <div className={styles.statTrend}>🔹 Renew soon</div>
                   </div>
                 </div>
@@ -115,29 +182,40 @@ function GuideDashboard({ activeTab, user }) {
             <div className={styles.dashboardCard}>
               <div className={styles.cardHeader}>
                 <h3>📚 Training Modules</h3>
-                <span className={styles.badge}>{total} Total</span>
+                <span className={styles.badge}>{total} Enrolled</span>
               </div>
-              <div className={styles.moduleList}>
-                {MY_MODULES.map((mod, idx) => (
-                  <div key={idx} className={styles.moduleListItem}>
-                    <div className={styles.moduleListItemLeft}>
-                      <span className={styles.moduleEmoji}>{mod.emoji}</span>
-                      <div>
-                        <div className={styles.moduleName}>{mod.name}</div>
-                        <div className={styles.moduleStatusBadge} style={{ color: mod.status === 'Completed' ? '#06a77d' : mod.status === 'In Progress' ? '#f77f00' : '#666' }}>
-                          {mod.status}
+              {enrollments.length === 0 ? (
+                <p style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
+                  No modules enrolled yet. Go to Training to enroll in modules.
+                </p>
+              ) : (
+                <div className={styles.moduleList}>
+                  {enrollments.map((enrollment) => {
+                    const module = getModuleInfo(enrollment.moduleId)
+                    const progress = getEnrollmentProgress(enrollment)
+                    const status = getStatusLabel(enrollment)
+                    return (
+                      <div key={enrollment.id} className={styles.moduleListItem}>
+                        <div className={styles.moduleListItemLeft}>
+                          <span className={styles.moduleEmoji}>{module ? getCategoryEmoji(module.category) : '📚'}</span>
+                          <div>
+                            <div className={styles.moduleName}>{module?.title || 'Unknown Module'}</div>
+                            <div className={styles.moduleStatusBadge} style={{ color: status === 'Completed' ? '#06a77d' : status === 'Failed' ? '#e63946' : status === 'In Progress' ? '#f77f00' : '#666' }}>
+                              {status}
+                            </div>
+                          </div>
+                        </div>
+                        <div className={styles.moduleListItemRight}>
+                          <div className={styles.progressBarTiny}>
+                            <div className={styles.progressFillTiny} style={{ width: `${progress}%` }} />
+                          </div>
+                          <span className={styles.progressPercent}>{progress}%</span>
                         </div>
                       </div>
-                    </div>
-                    <div className={styles.moduleListItemRight}>
-                      <div className={styles.progressBarTiny}>
-                        <div className={styles.progressFillTiny} style={{ width: `${mod.progress}%` }} />
-                      </div>
-                      <span className={styles.progressPercent}>{mod.progress}%</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Next Steps */}
@@ -145,7 +223,7 @@ function GuideDashboard({ activeTab, user }) {
               <div className={styles.ctaContent}>
                 <h3>🎯 Next Steps</h3>
                 <p>Continue your training to earn certificates and advance your skills.</p>
-                <button className={styles.primaryBtn} style={{ marginTop: '15px' }}>
+                <button className={styles.primaryBtn} style={{ marginTop: '15px' }} onClick={handleStartNextModule}>
                   Start Next Module →
                 </button>
               </div>
@@ -169,15 +247,9 @@ function GuideDashboard({ activeTab, user }) {
               <h2 className={styles.pageTitle}>Notifications</h2>
             </div>
             <div className={styles.section}>
-              {NOTIFICATIONS.map((n, i) => (
-                <div key={i} className={styles.alertRow}>
-                  <div className={styles.notifIcon}>{n.icon}</div>
-                  <div className={styles.alertContent}>
-                    <span className={styles.alertMsg}>{n.msg}</span>
-                    <span className={styles.alertTime}>{n.time}</span>
-                  </div>
-                </div>
-              ))}
+              <p style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
+                No notifications at this time.
+              </p>
             </div>
           </>
         )

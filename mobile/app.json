@@ -3,9 +3,12 @@
     "name": "Park Guide Mobile",
     "slug": "park-guide-mobile",
     "version": "1.0.0",
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
-      "supportsTabletMode": true
+      "supportsTabletMode": true,
+      "bundleIdentifier": "com.anonymous.park-guide-mobile"
     },
     "android": {
       "adaptiveIcon": {

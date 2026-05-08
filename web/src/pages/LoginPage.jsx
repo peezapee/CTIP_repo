@@ -1,11 +1,19 @@
 // pages/LoginPage.jsx
 import React, { useState } from 'react'
 import styles from './LoginPage.module.css'
+import { useNavigate } from 'react-router-dom'
+
+import {
+  doc,
+  getDoc,
+  addDoc,
+  collection,
+  serverTimestamp
+} from 'firebase/firestore'
 
 // Firebase imports
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from "../firebase";
-import { doc, getDoc } from "firebase/firestore";
 
 function LoginPage({ onLogin }) {
   const [email, setEmail] = useState('')
@@ -13,11 +21,33 @@ function LoginPage({ onLogin }) {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
+  const [loginAttempts, setLoginAttempts] = useState(0)
+
+const [lockedUntil, setLockedUntil] = useState(null)
+  const navigate = useNavigate()
+
   const handleLogin = async (e) => {
     e.preventDefault()
 
     setError('')
     setLoading(true)
+
+    if (
+      lockedUntil &&
+      Date.now() < lockedUntil
+    ) {
+
+      const seconds =
+        Math.ceil(
+          (lockedUntil - Date.now()) / 1000
+        )
+
+      setError(
+        `Too many failed attempts. Try again in ${seconds}s`
+      )
+
+      return
+    }
 
     try {
       const userCredential = await signInWithEmailAndPassword(
@@ -37,7 +67,33 @@ function LoginPage({ onLogin }) {
       if (docSnap.exists()) {
         const userData = docSnap.data()
 
+        if (userData.role === 'pending') {
+
+          setError(
+            'Your account is awaiting administrator approval.'
+          )
+
+          setLoading(false)
+
+          return
+        }
+
         console.log("Firestore data:", userData)
+
+        setLoginAttempts(0)
+        setLockedUntil(null)
+
+        addDoc(
+        collection(db, 'securityLogs'),
+        {
+          action: 'successful_login',
+
+          email: user.email,
+
+          timestamp:
+            serverTimestamp()
+        }
+      )
 
         // ✅ send FULL user data
         onLogin({
@@ -53,8 +109,53 @@ function LoginPage({ onLogin }) {
       }
 
     } catch (err) {
+      
       console.error(err.message)
-      setError("Invalid email or password.")
+
+      await addDoc(
+      collection(db, 'securityLogs'),
+      {
+        action: 'failed_login',
+
+        email,
+
+        timestamp:
+          serverTimestamp()
+      }
+    )
+
+      const newAttempts =
+    loginAttempts + 1
+
+    if (newAttempts >= 5) {
+
+    const lockTime =
+      Date.now() + 30000
+
+    setLockedUntil(lockTime)
+
+    await addDoc(
+      collection(db, 'securityLogs'),
+      {
+        action: 'account_locked',
+
+        email,
+
+        timestamp:
+          serverTimestamp()
+      }
+    )
+
+  setError(
+    'Too many failed login attempts. Account locked for 30 seconds.'
+  )
+
+} else {
+
+  setError(
+    `Invalid email or password. (${newAttempts}/5 attempts)`
+  )
+}
     }
 
     setLoading(false)
@@ -120,6 +221,14 @@ function LoginPage({ onLogin }) {
               disabled={loading}
             >
               {loading ? 'Signing in...' : 'Sign In'}
+            </button>
+
+            <button
+              type="button"
+              className={styles.signupBtn}
+              onClick={() => navigate('/register')}
+            >
+              Create Account
             </button>
           </form>
 

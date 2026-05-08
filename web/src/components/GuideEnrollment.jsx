@@ -120,6 +120,32 @@ function GuideEnrollment() {
     failed: '#e63946',
   }
 
+  function formatName(name) {
+
+  if (!name) return 'Unknown'
+
+  return name
+    .split(' ')
+    .map(
+      (word) =>
+        word.charAt(0).toUpperCase() +
+        word.slice(1).toLowerCase()
+    )
+    .join(' ')
+}
+
+const groupedByModule =
+  modules.map((module) => ({
+
+    ...module,
+
+    enrollments:
+      enrollments.filter(
+        (enrollment) =>
+          enrollment.moduleId === module.id
+      )
+  }))
+
   return (
     <div>
       <div className={styles.pageHeader}>
@@ -177,52 +203,78 @@ function GuideEnrollment() {
           </p>
         ) : (
           <div className={styles.tableContainer}>
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th>Guide Name</th>
-                  <th>Module</th>
-                  <th>Progress</th>
-                  <th>Status</th>
-                  <th>Score</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {enrollments.map((enrollment) => (
-                  <tr key={enrollment.id}>
-                    <td>{getGuideName(enrollment.guideId)}</td>
-                    <td>{getModuleName(enrollment.moduleId)}</td>
-                    <td>
-                      <div className={styles.progressBarSmall}>
-                        <div
-                          className={styles.progressFillSmall}
-                          style={{ width: `${enrollment.progress}%` }}
-                        />
+            <div className={styles.moduleCards}>
+
+          {groupedByModule.map((module) => (
+
+            <div
+              key={module.id}
+              className={styles.moduleEnrollmentCard}
+              style={{
+                borderLeft:
+                  module.title.includes('Biodiversity')
+                    ? '6px solid #2d6a4f'
+                    : module.title.includes('Wildlife')
+                    ? '6px solid #3a86ff'
+                    : '6px solid #e9c46a'
+              }}
+            >
+
+              <h3
+                style={{
+                  color:
+                    module.title.includes('Biodiversity')
+                      ? '#2d6a4f'
+                      : module.title.includes('Wildlife')
+                      ? '#3a86ff'
+                      : '#d4a017'
+                }}
+              >
+                {module.title}
+              </h3>
+
+              {module.enrollments.length === 0 ? (
+
+                <p>No guides enrolled.</p>
+
+              ) : (
+
+                <div className={styles.enrolledGuideList}>
+
+                  {module.enrollments.map((enrollment) => (
+
+                    <div
+                      key={enrollment.id}
+                      className={styles.enrolledGuideCard}
+                    >
+
+                      <div>
+                        <strong>
+                          {formatName(
+                            getGuideName(
+                              enrollment.guideId
+                            )
+                          )}
+                        </strong>
                       </div>
-                      {enrollment.progress}%
-                    </td>
-                    <td>
-                      <span
-                        className={styles.statusBadge}
-                        style={{ backgroundColor: statusColors[enrollment.status] }}
-                      >
+
+                      <div>
+                        Progress:
+                        {enrollment.progress}%
+                      </div>
+
+                      <div>
+                        Status:
                         {enrollment.status}
-                      </span>
-                    </td>
-                    <td>{enrollment.score !== null ? `${enrollment.score}%` : '—'}</td>
-                    <td>
-                      <button
-                        className={styles.deleteBtn}
-                        onClick={() => handleRemoveEnrollment(enrollment.id)}
-                      >
-                        🗑️
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      </div>
+
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
           </div>
         )}
       </div>

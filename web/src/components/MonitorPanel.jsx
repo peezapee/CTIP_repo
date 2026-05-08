@@ -137,6 +137,7 @@ function MonitorPanel() {
         )}
 
         <div className={styles.monitorFrame}>
+          
           {status.running && !isLockedForGuide ? (
             <img
               key={feedReloadKey}

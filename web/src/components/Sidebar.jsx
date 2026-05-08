@@ -1,5 +1,18 @@
-import React, { useState } from 'react'
 import styles from './Sidebar.module.css'
+
+import React, {
+  useState,
+  useEffect
+} from 'react'
+
+import {
+  collection,
+  query,
+  where,
+  onSnapshot
+} from 'firebase/firestore'
+
+import { db } from '../firebase'
 
 const TABS = [
   {
@@ -72,9 +85,30 @@ function Sidebar({
   isOpen
 }) {
 
-  const [accessMessage, setAccessMessage] = useState('')
+  const [pendingCount, setPendingCount] = useState(0)
   const role = user?.role || 'guide'
   const name = user?.name || user?.email || 'User'
+
+  useEffect(() => {
+
+  const q = query(
+    collection(db, 'users'),
+    where('role', '==', 'pending')
+  )
+
+  const unsubscribe = onSnapshot(
+    q,
+    (snapshot) => {
+
+      setPendingCount(
+        snapshot.docs.length
+      )
+    }
+  )
+
+  return () => unsubscribe()
+
+}, [])
 
   return (
     <>
@@ -155,6 +189,15 @@ function Sidebar({
               {tab.label}
             </span>
 
+            {tab.id === 'guides' &&
+            role === 'admin' &&
+            pendingCount > 0 && (
+
+              <span className={styles.badge}>
+                🔴 {pendingCount}
+              </span>
+            )}
+
             {tab.id === 'alerts' &&
              role === 'admin' && (
 
@@ -178,12 +221,6 @@ function Sidebar({
       </div>
 
     </aside>
-
-    {accessMessage && (
-      <div className={styles.accessDenied}>
-        {accessMessage}
-      </div>
-    )}
 
   </>
 )

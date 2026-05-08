@@ -232,3 +232,74 @@
   color: var(--green-mid);
   margin-bottom: 4px;
 }
+
+.signupBtn {
+  width: 100%;
+  margin-top: 2px;
+  padding: 14px;
+  border: 1px solid rgba(140, 45, 45, 0.15);
+  border-radius: 14px;
+  background: transparent;
+  color: rgb(183, 68, 68);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.signupBtn:hover {
+  background: rgba(206, 38, 38, 0.08);
+}
+
+.moduleGrid {
+  display: flex;
+  flex-direction: column;
+
+  gap: 8px;
+
+  margin-top: 6px;
+}
+
+.moduleOption {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  padding: 5px 12px;
+
+  border-radius: 12px;
+
+  background: rgba(255,255,255,0.04);
+
+  border: 1px solid rgba(255,255,255,0.08);
+
+  cursor: pointer;
+
+  transition: 0.2s ease;
+}
+
+.moduleOption:hover {
+  background: rgba(255,255,255,0.08);
+}
+
+.moduleOption input {
+  width: 16px;
+  height: 16px;
+
+  cursor: pointer;
+}
+
+.moduleOption span {
+  color: rgb(0, 0, 0);
+
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.formHint {
+  margin-top: 6px;
+  color: rgba(0, 0, 0, 0.7);
+  font-size: 13px;
+
+  line-height: 1.4;
+}

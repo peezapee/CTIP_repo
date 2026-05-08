@@ -59,13 +59,16 @@ function AdminMonitoringPanel() {
   useEffect(() => {
     const incidentsQuery = query(
       collection(db, 'incidents'),
-      orderBy('timestamp', 'desc'),
       limit(10)
     )
 
     const unsubscribe = onSnapshot(
+
       incidentsQuery,
       (snapshot) => {
+        
+        console.log(snapshot.docs.length)
+
         const nextIncidents = snapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
@@ -81,7 +84,17 @@ function AdminMonitoringPanel() {
     return () => unsubscribe()
   }, [])
 
-  const alertIncidents = incidents.filter((incident) => typeof incident.confidence === 'number' && incident.confidence >= 0.95)
+  const alertIncidents =
+  incidents.filter(
+    (incident) =>
+      [
+        'plant_picking',
+        'cuttingtrees',
+        'animaltrap',
+        'netgun',
+        'touching_animal'
+      ].includes(incident.type)
+  )
 
   const updateLock = useCallback(async (action) => {
     setLockLoading(true)

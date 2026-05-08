@@ -36,8 +36,8 @@ db = firestore.client()
 
 MODEL_PATH = "best.pt"
 CAMERA_ID = 0
-CONFIDENCE_THRESHOLD = 0.95          # minimum confidence for audio alert (only alert classes)
-RECORD_CONFIDENCE_THRESHOLD = 0.99  # minimum confidence to start recording (any class)
+CONFIDENCE_THRESHOLD = 0.60          # minimum confidence for audio alert (only alert classes)
+RECORD_CONFIDENCE_THRESHOLD = 0.70  # minimum confidence to start recording (any class)
 INFERENCE_EVERY_N_FRAMES = 2        # run classifier every N frames
 
 ABNORMAL_CLASS_NAMES = {
@@ -125,7 +125,14 @@ print("======================================\n")
 
 # ───── Camera ─────
 print(f"[CAMERA] Opening camera ID {CAMERA_ID}...")
-cap = cv2.VideoCapture(CAMERA_ID)
+VIDEO_PATH = "test_video.mp4"
+
+USE_VIDEO_FILE = True
+
+if USE_VIDEO_FILE:
+    cap = cv2.VideoCapture(VIDEO_PATH)
+else:
+    cap = cv2.VideoCapture(CAMERA_ID)
 if not cap.isOpened():
     print("[ERROR] Cannot open webcam.")
     sys.exit(1)

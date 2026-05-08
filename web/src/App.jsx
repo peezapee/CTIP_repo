@@ -6,6 +6,7 @@ import React, { useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import LoginPage from './pages/LoginPage.jsx'
 import DashboardPage from './pages/DashboardPage.jsx'
+import RegisterPage from './pages/RegisterPage'
 
 function App() {
   // useState = a way to "remember" something in React
@@ -25,6 +26,11 @@ function App() {
               ? <Navigate to="/dashboard" replace />
               : <LoginPage onLogin={setCurrentUser} />
           }
+        />
+
+        <Route
+          path="/register"
+          element={<RegisterPage />}
         />
 
         {/* Dashboard is only accessible if logged in */}

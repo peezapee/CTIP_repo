@@ -130,7 +130,6 @@ function TrainingModuleManager() {
     <div>
       <div className={styles.pageHeader}>
         <h2 className={styles.pageTitle}>📚 Training Modules</h2>
-        <p className={styles.pageSub}>Create and manage training modules</p>
       </div>
 
       {/* Create button */}

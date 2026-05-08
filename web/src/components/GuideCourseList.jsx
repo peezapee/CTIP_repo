@@ -120,7 +120,6 @@ function GuideCourseList({ userId }) {
     <div>
       <div className={styles.pageHeader}>
         <h2 className={styles.pageTitle}>📚 Training Courses</h2>
-        <p className={styles.pageSub}>Browse and complete your assigned training modules</p>
       </div>
 
       {enrollments.length === 0 ? (

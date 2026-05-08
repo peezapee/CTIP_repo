@@ -4,6 +4,7 @@
 import React, { useState, useEffect } from 'react'
 import { collection, getDocs, addDoc, doc } from 'firebase/firestore'
 import { db } from '../firebase.js'
+import { generateCertificatePDF } from '../utils/certificateUtils.js'
 import styles from './Dashboard.module.css'
 
 function CertificateManager({ userId, isAdmin = false }) {
@@ -113,9 +114,6 @@ function CertificateManager({ userId, isAdmin = false }) {
     <div>
       <div className={styles.pageHeader}>
         <h2 className={styles.pageTitle}>🎖️ Certificates</h2>
-        <p className={styles.pageSub}>
-          {isAdmin ? 'Issue and manage guide certificates' : 'Your training certifications'}
-        </p>
       </div>
 
       {/* Issued Certificates */}
@@ -160,7 +158,15 @@ function CertificateManager({ userId, isAdmin = false }) {
                       <strong>Score:</strong> {cert.score}%
                     </p>
                   </div>
-                  <button className={styles.primaryBtn}>
+                  <button 
+                    className={styles.primaryBtn}
+                    onClick={() => {
+                      const guideName = isAdmin 
+                        ? guides.find(g => g.uid === cert.guideId)?.name || 'Guide'
+                        : 'You';
+                      generateCertificatePDF(cert, guideName);
+                    }}
+                  >
                     📥 Download Certificate
                   </button>
                 </div>

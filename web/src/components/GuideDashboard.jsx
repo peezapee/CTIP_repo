@@ -167,7 +167,6 @@ function GuideDashboard({ activeTab, user }) {
           <>
             <div className={styles.pageHeader}>
               <h2 className={styles.pageTitle}>Notifications</h2>
-              <p className={styles.pageSub}>Your latest updates and reminders</p>
             </div>
             <div className={styles.section}>
               {NOTIFICATIONS.map((n, i) => (

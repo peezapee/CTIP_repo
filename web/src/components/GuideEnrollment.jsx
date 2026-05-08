@@ -124,7 +124,6 @@ function GuideEnrollment() {
     <div>
       <div className={styles.pageHeader}>
         <h2 className={styles.pageTitle}>👥 Guide Enrollment</h2>
-        <p className={styles.pageSub}>Enroll guides into training modules</p>
       </div>
 
       {/* Enrollment Form */}

@@ -65,7 +65,6 @@ function ProgressTracking() {
     <div>
       <div className={styles.pageHeader}>
         <h2 className={styles.pageTitle}>📊 Progress Tracking</h2>
-        <p className={styles.pageSub}>Monitor guide training progress and completion</p>
       </div>
 
       {/* Summary Stats */}

@@ -124,9 +124,6 @@ function AdminMonitoringPanel() {
     <div>
       <div className={styles.pageHeader}>
         <h2 className={styles.pageTitle}>Incident Monitoring</h2>
-        <p className={styles.pageSub}>
-          Review live detector status, recent alerts, and stored evidence from guided tours.
-        </p>
       </div>
 
       <div className={styles.statsGrid}>

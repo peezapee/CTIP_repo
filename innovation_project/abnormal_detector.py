@@ -32,11 +32,23 @@ def health():
 
 def start_flask():
     global flask_ready
+
     try:
-        flask_app.run(port=5000, threaded=True, debug=False, use_reloader=False)
         flask_ready = True
+
+        flask_app.run(
+            port=5000,
+            threaded=True,
+            debug=False,
+            use_reloader=False
+        )
+
     except Exception as e:
-        print(f"[FLASK ERROR] Failed to start Flask: {e}")
+
+        print(
+            f"[FLASK ERROR] Failed to start Flask: {e}"
+        )
+
         flask_ready = False
 
 flask_thread = threading.Thread(target=start_flask, daemon=True)

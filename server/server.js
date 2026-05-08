@@ -40,19 +40,34 @@ let detectorLocked = false;
 
 // Find Python executable (python3 on macOS/Linux, python on Windows)
 function getPythonExecutable() {
-  try {
-    // Try python3 first (standard on macOS/Linux)
-    execSync("python3 --version", { stdio: "ignore" });
-    return "python3";
-  } catch {
+
+  const possiblePaths = [
+
+    "C:/Users/celes/AppData/Local/Programs/Python/Python310/python.exe",
+
+    "/opt/homebrew/bin/python3",
+
+    "python3",
+
+    "python"
+  ];
+
+  for (const path of possiblePaths) {
+
     try {
-      // Fall back to python (Windows or older systems)
-      execSync("python --version", { stdio: "ignore" });
-      return "python";
-    } catch {
-      throw new Error("Python not found. Please install Python 3.");
-    }
+
+      execSync(`"${path}" --version`, {
+        stdio: "ignore"
+      });
+
+      return path;
+
+    } catch {}
   }
+
+  throw new Error(
+    "Python not found. Please install Python 3."
+  );
 }
 
 const verifyToken = async (req, res, next) => {
@@ -284,6 +299,7 @@ app.post(
   verifyToken,
   loadUserProfile,
   async (req, res) => {
+    
     const role = req.userProfile?.role;
 
     if (!hasMonitorAccess(role)) {

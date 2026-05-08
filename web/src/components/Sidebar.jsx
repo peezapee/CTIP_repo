@@ -12,6 +12,8 @@ import {
   onSnapshot
 } from 'firebase/firestore'
 
+
+
 import { db } from '../firebase'
 
 const TABS = [
@@ -69,12 +71,21 @@ const TABS = [
   },
 
   {
+    id: 'alerts',
+    icon: '🔔',
+    label: 'Alerts',
+    adminOnly: true,
+  },
+
+  {
     id: 'settings',
     icon: '⚙️',
     label: 'Settings',
     adminOnly: true,
   },
 ]
+
+const ALERT_CLASSES = ['plant_picking', 'cuttingtrees', 'animaltrap', 'netgun', 'touching_animal']
 
 function Sidebar({
   
@@ -86,29 +97,35 @@ function Sidebar({
 }) {
 
   const [pendingCount, setPendingCount] = useState(0)
+  const [alertCount, setAlertCount]     = useState(0)
   const role = user?.role || 'guide'
   const name = user?.name || user?.email || 'User'
 
   useEffect(() => {
+    const q = query(
+      collection(db, 'users'),
+      where('role', '==', 'pending')
+    )
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setPendingCount(snapshot.docs.length)
+    })
+    return () => unsubscribe()
+  }, [])
 
-  const q = query(
-    collection(db, 'users'),
-    where('role', '==', 'pending')
-  )
+  // Real-time count of unresolved violation alerts from the detector
+  useEffect(() => {
+    if (role !== 'admin') return
 
-  const unsubscribe = onSnapshot(
-    q,
-    (snapshot) => {
-
-      setPendingCount(
-        snapshot.docs.length
-      )
-    }
-  )
-
-  return () => unsubscribe()
-
-}, [])
+    const q = query(
+      collection(db, 'incidents'),
+      where('type', 'in', ALERT_CLASSES)
+    )
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const count = snapshot.docs.filter((d) => !d.data().reviewed).length
+      setAlertCount(count)
+    })
+    return () => unsubscribe()
+  }, [role])
 
   return (
     <>
@@ -199,10 +216,11 @@ function Sidebar({
             )}
 
             {tab.id === 'alerts' &&
-             role === 'admin' && (
+             role === 'admin' &&
+             alertCount > 0 && (
 
               <span className={styles.badge}>
-                2
+                {alertCount > 99 ? '99+' : alertCount}
               </span>
             )}
 

@@ -7,6 +7,7 @@ import { collection, onSnapshot, getDocs, query, orderBy } from "firebase/firest
 import { db, auth } from "../firebase";
 
 import AdminMonitoringPanel from './AdminMonitoringPanel';
+import AlertsPanel from './AlertsPanel';
 import TrainingModuleManager from './TrainingModuleManager';
 import GuideEnrollment from './GuideEnrollment';
 import ProgressTracking from './ProgressTracking';
@@ -335,6 +336,9 @@ useEffect(() => {
 
     case 'monitor':
       return <AdminMonitoringPanel />
+
+    case 'alerts':
+      return <AlertsPanel />
 
     case 'modules':
       return <TrainingModuleManager />

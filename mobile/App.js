@@ -4,14 +4,21 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { ActivityIndicator, View } from 'react-native';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from './firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { auth, db } from './firebase';
 
-// Screens
+// Guide Screens
 import LoginScreen from './screens/LoginScreen';
 import HomeScreen from './screens/HomeScreen';
 import TrainingScreen from './screens/TrainingScreen';
 import CertificateScreen from './screens/CertificateScreen';
 import ProfileScreen from './screens/ProfileScreen';
+
+// Admin Screens
+import AdminDashboard from './screens/admin/AdminDashboard';
+import AdminModuleManager from './screens/admin/AdminModuleManager';
+import AdminUsersManager from './screens/admin/AdminUsersManager';
+import AdminProfileScreen from './screens/admin/AdminProfileScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -63,13 +70,65 @@ function GuideStack() {
   );
 }
 
+function AdminStack() {
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        tabBarLabel: route.name,
+        headerShown: false,
+        tabBarActiveTintColor: '#1565c0',
+        tabBarInactiveTintColor: '#999',
+      })}
+    >
+      <Tab.Screen 
+        name="Dashboard" 
+        component={AdminDashboard}
+        options={{ title: '📊 Dashboard' }}
+      />
+      <Tab.Screen 
+        name="Modules" 
+        component={AdminModuleManager}
+        options={{ title: '📚 Modules' }}
+      />
+      <Tab.Screen 
+        name="Users" 
+        component={AdminUsersManager}
+        options={{ title: '👥 Users' }}
+      />
+      <Tab.Screen 
+        name="AdminProfile" 
+        component={AdminProfileScreen}
+        options={{ title: '⚙️ Admin' }}
+      />
+    </Tab.Navigator>
+  );
+}
+
 export default function App() {
   const [user, setUser] = useState(null);
+  const [userRole, setUserRole] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        // Fetch user role from Firestore
+        try {
+          const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+          if (userDoc.exists()) {
+            setUserRole(userDoc.data().role || 'guide');
+          } else {
+            setUserRole('guide'); // Default role
+          }
+        } catch (error) {
+          console.error('Error fetching user role:', error);
+          setUserRole('guide');
+        }
+        setUser(currentUser);
+      } else {
+        setUser(null);
+        setUserRole(null);
+      }
       setLoading(false);
     });
 
@@ -86,7 +145,14 @@ export default function App() {
 
   return (
     <NavigationContainer>
-      {user ? <GuideStack /> : <AuthStack />}
+      {!user ? (
+        <AuthStack />
+      ) : userRole === 'admin' ? (
+        <AdminStack />
+      ) : (
+        <GuideStack />
+      )}
     </NavigationContainer>
   );
 }
+

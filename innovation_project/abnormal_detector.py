@@ -125,14 +125,7 @@ print("======================================\n")
 
 # ───── Camera ─────
 print(f"[CAMERA] Opening camera ID {CAMERA_ID}...")
-VIDEO_PATH = "test_video.mp4"
-
-USE_VIDEO_FILE = True
-
-if USE_VIDEO_FILE:
-    cap = cv2.VideoCapture(VIDEO_PATH)
-else:
-    cap = cv2.VideoCapture(CAMERA_ID)
+cap = cv2.VideoCapture(CAMERA_ID)
 if not cap.isOpened():
     print("[ERROR] Cannot open webcam.")
     sys.exit(1)

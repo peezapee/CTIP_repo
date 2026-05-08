@@ -13,6 +13,7 @@ from firebase_admin import credentials, firestore
 from flask import Flask, Response
 flask_app = Flask(__name__)
 latest_frame = None
+flask_ready = False
 
 @flask_app.route('/video-feed')
 def video_feed():
@@ -24,10 +25,26 @@ def video_feed():
                        + buf.tobytes() + b'\r\n')
     return Response(generate(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
-threading.Thread(
-    target=lambda: flask_app.run(port=5000, threaded=True),
-    daemon=True
-).start()
+@flask_app.route('/health')
+def health():
+    """Health check endpoint"""
+    return {"status": "ok", "flask_ready": flask_ready}
+
+def start_flask():
+    global flask_ready
+    try:
+        flask_app.run(port=5000, threaded=True, debug=False, use_reloader=False)
+        flask_ready = True
+    except Exception as e:
+        print(f"[FLASK ERROR] Failed to start Flask: {e}")
+        flask_ready = False
+
+flask_thread = threading.Thread(target=start_flask, daemon=True)
+flask_thread.start()
+
+# Give Flask time to start
+time.sleep(2)
+print("[FLASK] Server started on port 5000")
 
 # ========== CONFIGURATION ==========
 cred = credentials.Certificate("firebase_admin-key.json")
@@ -124,10 +141,32 @@ for idx, name in CLASS_NAMES.items():
 print("======================================\n")
 
 # ───── Camera ─────
-print(f"[CAMERA] Opening camera ID {CAMERA_ID}...")
-cap = cv2.VideoCapture(CAMERA_ID)
-if not cap.isOpened():
-    print("[ERROR] Cannot open webcam.")
+# Try to find an available camera device
+cap = None
+used_camera_id = CAMERA_ID
+
+print(f"[CAMERA] Searching for available camera device...")
+for attempt_id in range(10):  # Try device IDs 0-9
+    print(f"[CAMERA] Trying camera ID {attempt_id}...")
+    test_cap = cv2.VideoCapture(attempt_id)
+    if test_cap.isOpened():
+        # Verify it actually returns frames
+        ret, frame = test_cap.read()
+        if ret and frame is not None:
+            cap = test_cap
+            used_camera_id = attempt_id
+            print(f"[CAMERA] ✓ Successfully opened camera ID {attempt_id}")
+            break
+        test_cap.release()
+    else:
+        test_cap.release()
+
+if cap is None or not cap.isOpened():
+    print("[ERROR] No available camera device found.")
+    print("[ERROR] Please check:")
+    print("  1. Camera is connected and enabled")
+    print("  2. Camera permissions are granted (macOS: System Settings > Privacy & Security > Camera)")
+    print("  3. No other application is exclusively using the camera")
     sys.exit(1)
 
 w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))

@@ -4,6 +4,7 @@ import cors from "cors";
 import fs from "fs";
 import rateLimit from "express-rate-limit";
 import { spawn } from "child_process";
+import { execSync } from "child_process";
 import path from "path";
 
 const serviceAccount = JSON.parse(
@@ -17,7 +18,8 @@ admin.initializeApp({
 const db = admin.firestore();
 const app = express();
 
-const DETECTOR_CWD = "C:/Users/celes/Downloads/COS30049 CTIP/CTIP_repo/innovation_project";
+// Use relative path for detector (works on any platform)
+const DETECTOR_CWD = path.join(process.cwd(), "..", "innovation_project");
 const DETECTOR_FEED_URL = "http://127.0.0.1:5000/video-feed";
 
 app.use(cors());
@@ -35,6 +37,23 @@ app.use(limiter);
 
 let detectorProcess = null;
 let detectorLocked = false;
+
+// Find Python executable (python3 on macOS/Linux, python on Windows)
+function getPythonExecutable() {
+  try {
+    // Try python3 first (standard on macOS/Linux)
+    execSync("python3 --version", { stdio: "ignore" });
+    return "python3";
+  } catch {
+    try {
+      // Fall back to python (Windows or older systems)
+      execSync("python --version", { stdio: "ignore" });
+      return "python";
+    } catch {
+      throw new Error("Python not found. Please install Python 3.");
+    }
+  }
+}
 
 const verifyToken = async (req, res, next) => {
   try {
@@ -264,7 +283,7 @@ app.post(
   "/detector/start",
   verifyToken,
   loadUserProfile,
-  (req, res) => {
+  async (req, res) => {
     const role = req.userProfile?.role;
 
     if (!hasMonitorAccess(role)) {
@@ -288,13 +307,26 @@ app.post(
       });
     }
 
+    // Spawn detector process
+    let pythonCmd;
+    try {
+      pythonCmd = getPythonExecutable();
+    } catch (error) {
+      return res.status(500).json({
+        error: error.message
+      });
+    }
+
     detectorProcess = spawn(
-      "python",
+      pythonCmd,
       ["abnormal_detector.py"],
       {
         cwd: DETECTOR_CWD
       }
     );
+
+    let errorOccurred = false;
+    let errorMessage = "Unknown error";
 
     detectorProcess.stdout.on("data", (data) => {
       console.log(`[PYTHON]: ${data}`);
@@ -302,17 +334,59 @@ app.post(
 
     detectorProcess.stderr.on("data", (data) => {
       console.error(`[PYTHON ERROR]: ${data}`);
+      // Capture camera-related errors
+      if (data.includes("Cannot open webcam") || data.includes("No available camera")) {
+        errorOccurred = true;
+        errorMessage = "Camera device not found or not accessible. Check camera permissions and connections.";
+      }
     });
 
     detectorProcess.on("error", (error) => {
       console.error("Detector failed to start:", error);
+      errorOccurred = true;
+      errorMessage = error.message;
       detectorProcess = null;
     });
 
     detectorProcess.on("close", (code) => {
       console.log(`Detector exited with code ${code}`);
+      if (code !== 0 && !errorOccurred) {
+        errorOccurred = true;
+        errorMessage = `Detector exited with code ${code}. Check logs for details.`;
+      }
       detectorProcess = null;
     });
+
+    // Wait for Flask to be ready (with timeout)
+    const maxWaitTime = 5000; // 5 seconds
+    const startTime = Date.now();
+    let flaskReady = false;
+
+    while (Date.now() - startTime < maxWaitTime) {
+      if (errorOccurred) {
+        return res.status(500).json({
+          error: errorMessage
+        });
+      }
+
+      try {
+        const response = await fetch("http://127.0.0.1:5000/health");
+        if (response.ok) {
+          flaskReady = true;
+          break;
+        }
+      } catch (err) {
+        // Flask not ready yet, wait and retry
+      }
+
+      await new Promise(r => setTimeout(r, 200)); // Wait 200ms before retrying
+    }
+
+    if (!flaskReady) {
+      return res.status(500).json({
+        error: "Detector failed to start: Video server did not respond. Check camera access."
+      });
+    }
 
     res.json({
       success: true,

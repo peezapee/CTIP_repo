@@ -13,6 +13,7 @@ import HomeScreen from './screens/HomeScreen';
 import TrainingScreen from './screens/TrainingScreen';
 import CertificateScreen from './screens/CertificateScreen';
 import ProfileScreen from './screens/ProfileScreen';
+import MonitoringScreen from './screens/MonitoringScreen';
 
 // Admin Screens
 import AdminDashboard from './screens/admin/AdminDashboard';
@@ -60,6 +61,11 @@ function GuideStack() {
         name="Certificates" 
         component={CertificateScreen}
         options={{ title: '🎖️ Certs' }}
+      />
+      <Tab.Screen 
+        name="Monitoring" 
+        component={MonitoringScreen}
+        options={{ title: '📷 Monitor' }}
       />
       <Tab.Screen 
         name="Profile" 

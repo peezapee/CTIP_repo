@@ -45,7 +45,7 @@ function getPythonExecutable() {
 
     "C:/Users/celes/AppData/Local/Programs/Python/Python310/python.exe",
 
-    "/opt/homebrew/bin/python3",
+    "/Users/switch/Documents/GitHub/CTIP_repo/.venv/bin/python3",
 
     "python3",
 

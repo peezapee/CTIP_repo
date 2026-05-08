@@ -183,3 +183,40 @@
   background: rgba(230, 57, 70, 0.15);
   color: #fc8181;
 }
+
+.accessDenied {
+  position: fixed;
+
+  top: 50%;
+  left: 50%;
+
+  transform: translate(-50%, -50%);
+
+  z-index: 99999;
+
+  width: 420px;
+  max-width: 90vw;
+
+  padding: 28px 32px;
+
+  border-radius: 24px;
+
+  background: rgba(10, 10, 10, 0.96);
+
+  border: 1px solid rgba(255, 80, 80, 0.35);
+
+  color: #ffb3b3;
+
+  text-align: center;
+
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.4;
+
+  box-shadow:
+    0 30px 80px rgba(0,0,0,0.55);
+
+  backdrop-filter: blur(14px);
+
+  animation: deniedPop 0.22s ease;
+}

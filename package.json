@@ -1,21 +1,16 @@
 {
-  "name": "park-guide-app",
+  "name": "park-guide-monorepo",
   "private": true,
-  "version": "0.0.1",
-  "type": "module",
+  "version": "1.0.0",
+  "workspaces": [
+    "web",
+    "mobile",
+    "server"
+  ],
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "firebase": "^12.12.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-router-dom": "^6.22.0"
-  },
-  "devDependencies": {
-    "@vitejs/plugin-react": "^4.2.1",
-  "vite": "^7.3.2"
+    "install:all": "npm install",
+    "web": "npm run dev --workspace=web",
+    "mobile": "npm run start --workspace=mobile",
+    "backend": "npm run start --workspace=server"
   }
 }

@@ -1,14 +1,21 @@
 // pages/DashboardPage.jsx
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Sidebar from '../components/Sidebar.jsx'
 import AdminDashboard from '../components/AdminDashboard.jsx'
 import GuideDashboard from '../components/GuideDashboard.jsx'
+import { db } from '../firebase.js'
+import { seedModules } from '../utils/seedModules.js'
 import styles from './DashboardPage.module.css'
 
 function DashboardPage({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('dashboard')
   const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  // 🔥 Seed training modules on component mount (DISABLED - use UI instead)
+  useEffect(() => {
+    // seedModules(db) - Disabled, create modules via admin UI
+  }, [])
 
   // 🔥 SAFE FALLBACKS (prevents crash)
   const displayName = user?.name || user?.email || "User"
@@ -63,10 +70,33 @@ function DashboardPage({ user, onLogout }) {
 
         {/* Content */}
         <div className={styles.content}>
-          {role === 'admin'
-            ? <AdminDashboard activeTab={activeTab} />
-            : <GuideDashboard activeTab={activeTab} user={user} />
-          }
+          {role === 'admin' ? (
+
+  <AdminDashboard activeTab={activeTab} onTabChange={setActiveTab} />
+
+) : (
+
+  <>
+    {/* block admin tabs */}
+    {['guides', 'modules', 'settings'].includes(activeTab) ? (
+
+      <div>
+        <h1>Access Denied</h1>
+        <p>You do not have permission to access this page.</p>
+      </div>
+
+    ) : (
+
+      <GuideDashboard
+        activeTab={activeTab}
+        user={user}
+        onTabChange={setActiveTab}
+      />
+
+    )}
+  </>
+
+)}
         </div>
 
       </div>

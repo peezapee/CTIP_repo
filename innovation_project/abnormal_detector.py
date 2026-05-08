@@ -4,11 +4,37 @@ import os
 import json
 import threading
 import sys
+import firebase_admin
+import hashlib
 from collections import deque
 from ultralytics import YOLO
+from firebase_admin import credentials, firestore
+
+from flask import Flask, Response
+flask_app = Flask(__name__)
+latest_frame = None
+
+@flask_app.route('/video-feed')
+def video_feed():
+    def generate():
+        while True:
+            if latest_frame is not None:
+                _, buf = cv2.imencode('.jpg', latest_frame)
+                yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n'
+                       + buf.tobytes() + b'\r\n')
+    return Response(generate(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+threading.Thread(
+    target=lambda: flask_app.run(port=5000, threaded=True),
+    daemon=True
+).start()
 
 # ========== CONFIGURATION ==========
-MODEL_PATH = "innovation_project/best.pt"
+cred = credentials.Certificate("firebase_admin-key.json")
+firebase_admin.initialize_app(cred)
+db = firestore.client()
+
+MODEL_PATH = "best.pt"
 CAMERA_ID = 0
 CONFIDENCE_THRESHOLD = 0.95          # minimum confidence for audio alert (only alert classes)
 RECORD_CONFIDENCE_THRESHOLD = 0.99  # minimum confidence to start recording (any class)
@@ -149,9 +175,38 @@ def run_classification(frame):
     return top1_name, top1_conf
 
 # ───── Main Loop ─────
-print("[INFO] Running... press Q to quit")
-cv2.namedWindow("AI Monitoring System", cv2.WINDOW_NORMAL)
-cv2.resizeWindow("AI Monitoring System", 960, 540)
+def generate_file_hash(file_path):
+
+    sha256 = hashlib.sha256()
+
+    with open(file_path, "rb") as f:
+        while chunk := f.read(4096):
+            sha256.update(chunk)
+
+    return sha256.hexdigest()
+
+def save_incident_to_firestore(
+    detection_type,
+    confidence,
+    snapshot_path,
+    video_path,
+    snapshot_hash
+):
+
+    incident_data = {
+        "type": detection_type,
+        "confidence": float(confidence),
+        "snapshot": snapshot_path,
+        "snapshot_hash": snapshot_hash,
+        "video": video_path,
+        "timestamp": firestore.SERVER_TIMESTAMP
+    }
+
+    doc_ref = db.collection("incidents").add(incident_data)
+
+    print("[FIREBASE] Incident saved:", doc_ref)
+
+print("[INFO] Running detector for website stream...")
 
 try:
     while True:
@@ -213,7 +268,18 @@ try:
                 snapshot_name = f"alert_{int(now)}_{last_top1_name}.jpg"
                 snapshot_path = os.path.join(SNAPSHOT_DIR, snapshot_name)
                 cv2.imwrite(snapshot_path, display_frame)
+                snapshot_hash = generate_file_hash(snapshot_path)
+
+                print("[HASH] Snapshot SHA256:", snapshot_hash)
                 print(f"[SNAPSHOT] Alert saved: {snapshot_path}")
+
+                save_incident_to_firestore(
+                    last_top1_name,
+                    last_top1_conf,
+                    snapshot_path,
+                    current_clip_path if recording else "Not recording yet",
+                    snapshot_hash
+                )
 
             # Red warning on screen
             cv2.putText(display_frame, "⚠ ALERT DETECTED!", (50, 110),
@@ -265,24 +331,13 @@ try:
         status_color = (0, 0, 255) if recording else (0, 255, 0)
         cv2.putText(display_frame, status, (10, h - 10),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, status_color, 2)
-
-        cv2.imshow("AI Monitoring System", display_frame)
-
-        key = cv2.waitKey(1) & 0xFF
-        if key == ord('q'):
-            print("[INFO] 'q' pressed, exiting...")
-            break
-        # Detect window close
-        if cv2.getWindowProperty("AI Monitoring System", cv2.WND_PROP_VISIBLE) < 1:
-            print("[INFO] Window closed, exiting...")
-            break
+        latest_frame = display_frame.copy()
 
 finally:
     print("[INFO] Shutting down...")
     if writer:
         writer.release()
     cap.release()
-    cv2.destroyAllWindows()
 
     with open(LOG_FILE, "w") as f:
         json.dump(incident_log, f, indent=2)

@@ -20,6 +20,7 @@ import AdminDashboard from './screens/admin/AdminDashboard';
 import AdminModuleManager from './screens/admin/AdminModuleManager';
 import AdminUsersManager from './screens/admin/AdminUsersManager';
 import AdminProfileScreen from './screens/admin/AdminProfileScreen';
+import AdminMonitoringScreen from './screens/AdminMonitoringScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -95,6 +96,11 @@ function AdminStack() {
         name="Modules" 
         component={AdminModuleManager}
         options={{ title: '📚 Modules' }}
+      />
+      <Tab.Screen 
+        name="Monitoring" 
+        component={AdminMonitoringScreen}
+        options={{ title: '📷 Monitor' }}
       />
       <Tab.Screen 
         name="Users" 

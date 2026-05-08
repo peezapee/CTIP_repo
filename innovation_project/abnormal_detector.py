@@ -68,7 +68,8 @@ ALERT_CLASSES = {                     # only these trigger the beep & red warnin
     "plant_picking",
     "cuttingtrees",
     "animaltrap",
-    "netgun"
+    "netgun",
+    "touching_animal",
 }
 
 PRE_DETECT_BUFFER_SEC = 3
@@ -187,8 +188,10 @@ try:
 
         # ----- Two independent triggers -----
         # Illegal activity → alert + recording
-        is_alert = (last_top1_conf >= CONFIDENCE_THRESHOLD and last_top1_name in ALERT_CLASSES)
-
+        is_alert = (
+        last_top1_name in ALERT_CLASSES and
+        last_top1_conf >= (0.5 if last_top1_name == "touching_animal" else CONFIDENCE_THRESHOLD)
+        )
         is_rare  = (last_top1_conf >= RECORD_CONFIDENCE_THRESHOLD and last_top1_name in ABNORMAL_CLASS_NAMES)
 
         # Combined: start/continue recording if either is true

@@ -26,11 +26,14 @@ function LoginPage({ onLogin }) {
 const [lockedUntil, setLockedUntil] = useState(null)
   const navigate = useNavigate()
 
-  const handleLogin = async (e) => {
-    e.preventDefault()
+const handleLogin = async (e) => {
 
-    setError('')
-    setLoading(true)
+  e.preventDefault()
+
+  setError('')
+  setLoading(true)
+
+  try {
 
     if (
       lockedUntil &&
@@ -49,117 +52,87 @@ const [lockedUntil, setLockedUntil] = useState(null)
       return
     }
 
-    try {
-      const userCredential = await signInWithEmailAndPassword(
+    const userCredential =
+      await signInWithEmailAndPassword(
         auth,
         email,
         password
       )
 
-      const user = userCredential.user
+    const user =
+      userCredential.user
 
-      console.log("Logged in:", user)
+    const docRef =
+      doc(db, "users", user.uid)
 
-      // 🔥 GET DATA FROM FIRESTORE
-      const docRef = doc(db, "users", user.uid)
-      const docSnap = await getDoc(docRef)
+    const docSnap =
+      await getDoc(docRef)
 
-      if (docSnap.exists()) {
-        const userData = docSnap.data()
+    if (docSnap.exists()) {
 
-        if (userData.role === 'pending') {
+      const userData =
+        docSnap.data()
 
-          setError(
-            'Your account is awaiting administrator approval.'
-          )
+      if (
+        userData.role === 'pending'
+      ) {
 
-          setLoading(false)
+        setError(
+          'Your account is awaiting administrator approval.'
+        )
 
-          return
-        }
+        return
+      }
 
-        console.log("Firestore data:", userData)
+      setLoginAttempts(0)
+      setLockedUntil(null)
 
-        setLoginAttempts(0)
-        setLockedUntil(null)
+      onLogin({
+        uid: user.uid,
+        email: user.email,
+        name: userData.name,
+        role: userData.role
+      })
 
-        addDoc(
-        collection(db, 'securityLogs'),
-        {
-          action: 'successful_login',
+    } else {
 
-          email: user.email,
-
-          timestamp:
-            serverTimestamp()
-        }
+      setError(
+        'User data not found.'
       )
+    }
 
-        // ✅ send FULL user data
-        onLogin({
-          uid: user.uid,
-          email: user.email,
-          name: userData.name,
-          role: userData.role
-        })
+  } catch (err) {
 
-      } else {
-        console.error("No Firestore user found")
-        setError("User data not found in database.")
-      }
+    console.error(err)
 
-    } catch (err) {
-      
-      console.error(err.message)
+    const newAttempts =
+      loginAttempts + 1
 
-      await addDoc(
-      collection(db, 'securityLogs'),
-      {
-        action: 'failed_login',
-
-        email,
-
-        timestamp:
-          serverTimestamp()
-      }
-    )
-
-      const newAttempts =
-    loginAttempts + 1
+    setLoginAttempts(newAttempts)
 
     if (newAttempts >= 5) {
 
-    const lockTime =
-      Date.now() + 30000
+      const lockTime =
+        Date.now() + 30000
 
-    setLockedUntil(lockTime)
+      setLockedUntil(lockTime)
 
-    await addDoc(
-      collection(db, 'securityLogs'),
-      {
-        action: 'account_locked',
+      setError(
+        'Too many failed login attempts. Account locked for 30 seconds.'
+      )
 
-        email,
+    } else {
 
-        timestamp:
-          serverTimestamp()
-      }
-    )
-
-  setError(
-    'Too many failed login attempts. Account locked for 30 seconds.'
-  )
-
-} else {
-
-  setError(
-    `Invalid email or password. (${newAttempts}/5 attempts)`
-  )
-}
+      setError(
+        `Invalid email or password. (${newAttempts}/5 attempts)`
+      )
     }
+
+  } finally {
 
     setLoading(false)
   }
+}
 
   return (
     <div className={styles.page}>

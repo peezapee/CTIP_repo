@@ -1,4 +1,7 @@
-import React, { useState } from 'react'
+import React, {
+  useState,
+  useEffect
+} from 'react'
 import styles from './LoginPage.module.css'
 
 import { useNavigate } from 'react-router-dom'
@@ -22,45 +25,113 @@ import {
   getDocs
 } from 'firebase/firestore'
 
-const MODULE_OPTIONS = [
-  'Biodiversity Basics',
-  'Wildlife Safety Protocols',
-  'Eco-Tourism Best Practices'
-]
-
 function RegisterPage() {
 
   const navigate = useNavigate()
 
+  const [assessmentScore, setAssessmentScore] = useState('')
+  
+  const [documentFile, setDocumentFile] =
+  useState(null)
+  
+useEffect(() => {
+
+  const savedScore =
+    sessionStorage.getItem(
+      'assessmentScore'
+    )
+
+  if (savedScore) {
+    setAssessmentScore(savedScore)
+  }
+
+  const savedName =
+    sessionStorage.getItem(
+      'registerName'
+    )
+
+  if (savedName) {
+    setName(savedName)
+  }
+
+  const savedEmail =
+    sessionStorage.getItem(
+      'registerEmail'
+    )
+
+  if (savedEmail) {
+    setEmail(savedEmail)
+  }
+
+  const savedEducation =
+    sessionStorage.getItem(
+      'educationLevel'
+    )
+
+  if (savedEducation) {
+    setEducationLevel(savedEducation)
+  }
+
+  const savedExperience =
+    sessionStorage.getItem(
+      'experienceLevel'
+    )
+
+  if (savedExperience) {
+    setExperienceLevel(savedExperience)
+  }
+
+  const savedArea =
+    sessionStorage.getItem(
+      'preferredArea'
+    )
+
+  if (savedArea) {
+    setPreferredArea(savedArea)
+  }
+
+}, [])
+
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [selectedModules, setSelectedModules] = useState([])
+
+  const [educationLevel, setEducationLevel] =
+    useState('')
+
+  const [experienceLevel, setExperienceLevel] =
+    useState('')
+
+  const [preferredArea, setPreferredArea] =
+    useState('')
 
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
 
-  const toggleModule = (module) => {
+  const convertToBase64 = (file) => {
 
-  setSelectedModules((current) => {
+  return new Promise((resolve, reject) => {
 
-    if (current.includes(module)) {
-      return current.filter((m) => m !== module)
-    }
+    const reader = new FileReader()
 
-    return [...current, module]
+    reader.readAsDataURL(file)
+
+    reader.onload = () =>
+      resolve(reader.result)
+
+    reader.onerror = (error) =>
+      reject(error)
   })
 }
-  
 
   const handleRegister = async (e) => {
 
     e.preventDefault()
 
     if (!name.trim()) {
-        setError('Name is required')
-        return
+      setError('Name is required')
+      return
     }
 
     setError('')
@@ -68,34 +139,69 @@ function RegisterPage() {
     const nameRegex = /^[A-Za-z\s]+$/
 
     if (!nameRegex.test(name)) {
-    setError(
+
+      setError(
         'Name must contain letters only'
-    )
-    return
+      )
+
+      return
     }
 
     const emailRegex =
-    /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
     if (!emailRegex.test(email)) {
-    setError(
+
+      setError(
         'Invalid email format'
-    )
-    return
+      )
+
+      return
     }
 
     if (password.length < 6) {
-    setError(
+
+      setError(
         'Password must be at least 6 characters'
-    )
-    return
+      )
+
+      return
     }
 
-    if (selectedModules.length === 0) {
-    setError(
-        'Please select at least one course'
-    )
-    return
+    if (!educationLevel) {
+
+      setError(
+        'Please select education level'
+      )
+
+      return
+    }
+
+    if (!experienceLevel) {
+
+      setError(
+        'Please select experience level'
+      )
+
+      return
+    }
+
+    if (!preferredArea) {
+
+      setError(
+        'Please select preferred area'
+      )
+
+      return
+    }
+
+    if (!assessmentScore) {
+
+      setError(
+        'Please enter assessment score'
+      )
+
+      return
     }
 
     setMessage('')
@@ -103,23 +209,23 @@ function RegisterPage() {
 
     try {
 
-        const q = query(
-            collection(db, 'users'),
-            where('name', '==', name)
-        )
+      const q = query(
+        collection(db, 'users'),
+        where('name', '==', name)
+      )
 
-        const snapshot = await getDocs(q)
+      const snapshot = await getDocs(q)
 
-        if (!snapshot.empty) {
+      if (!snapshot.empty) {
 
         setError(
-            'This username already exists'
+          'This username already exists'
         )
 
         setLoading(false)
 
         return
-        }
+      }
 
       const credential =
         await createUserWithEmailAndPassword(
@@ -130,15 +236,54 @@ function RegisterPage() {
 
       const user = credential.user
 
+      let documentURL = null
+
+      if (documentFile) {
+
+        const formData =
+          new FormData()
+
+        formData.append(
+          'certificate',
+          documentFile
+        )
+
+        const response =
+          await fetch(
+            'http://localhost:3000/upload-certificates',
+            {
+              method: 'POST',
+              body: formData
+            }
+          )
+
+        const data =
+          await response.json()
+
+        documentURL =
+          data.filePath
+      }
+
       await setDoc(
         doc(db, 'users', user.uid),
         {
           name,
           email,
 
+          educationLevel,
+          experienceLevel,
+          preferredArea,
+
+          assessmentScore,
+
+          supportingDocument:
+            documentURL,
+
           role: 'pending',
 
-          requestedModules: selectedModules,
+          paymentStatus: 'pending',
+
+          accountStatus: 'pending approval',
 
           createdAt: serverTimestamp()
         }
@@ -165,9 +310,11 @@ function RegisterPage() {
   }
 
   return (
+
     <div className={styles.page}>
 
       <div className={styles.brandPanel}>
+
         <div className={styles.brandContent}>
 
           <div className={styles.logo}>
@@ -190,6 +337,7 @@ function RegisterPage() {
         <div className={styles.formCard}>
 
           <div className={styles.formHeader}>
+
             <h2 className={styles.formTitle}>
               Create Account
             </h2>
@@ -197,6 +345,7 @@ function RegisterPage() {
             <p className={styles.formSub}>
               Register to request guide access
             </p>
+
           </div>
 
           <form
@@ -205,6 +354,7 @@ function RegisterPage() {
           >
 
             <div className={styles.fieldGroup}>
+
               <label className={styles.label}>
                 Full Name
               </label>
@@ -214,14 +364,22 @@ function RegisterPage() {
                 className={styles.input}
                 placeholder="Enter your full name"
                 value={name}
-                onChange={(e) =>
+                onChange={(e) => {
+
                   setName(e.target.value)
-                }
+
+                  sessionStorage.setItem(
+                    'registerName',
+                    e.target.value
+                  )
+                }}
                 required
               />
+
             </div>
 
             <div className={styles.fieldGroup}>
+
               <label className={styles.label}>
                 Email Address
               </label>
@@ -231,47 +389,213 @@ function RegisterPage() {
                 className={styles.input}
                 placeholder="your@email.com"
                 value={email}
-                onChange={(e) =>
+                onChange={(e) => {
+
                   setEmail(e.target.value)
-                }
+
+                  sessionStorage.setItem(
+                    'registerEmail',
+                    e.target.value
+                  )
+                }}
                 required
               />
+
             </div>
+
+            <div className={styles.fieldGroup}>
+
+              <label className={styles.label}>
+                Education Level
+              </label>
+
+              <select
+                className={styles.input}
+                value={educationLevel}
+                onChange={(e) => {
+
+                  setEducationLevel(e.target.value)
+
+                  sessionStorage.setItem(
+                    'educationLevel',
+                    e.target.value
+                  )
+                }}
+                required
+              >
+
+                <option value="">
+                  Select Education Level
+                </option>
+
+                <option value="High School">
+                  High School
+                </option>
+
+                <option value="Diploma">
+                  Diploma
+                </option>
+
+                <option value="Degree">
+                  Degree
+                </option>
+
+              </select>
+
+            </div>
+
+            <div className={styles.fieldGroup}>
+
+              <label className={styles.label}>
+                Guiding Experience
+              </label>
+
+              <select
+                className={styles.input}
+                value={experienceLevel}
+                onChange={(e) => {
+
+                  setExperienceLevel(e.target.value)
+
+                  sessionStorage.setItem(
+                    'experienceLevel',
+                    e.target.value
+                  )
+                }}
+                required
+              >
+
+                <option value="">
+                  Select Experience Level
+                </option>
+
+                <option value="Beginner">
+                  Beginner
+                </option>
+
+                <option value="1-2 Years">
+                  1-2 Years
+                </option>
+
+                <option value="3+ Years">
+                  3+ Years
+                </option>
+
+              </select>
+
+            </div>
+
+            <div className={styles.fieldGroup}>
+
+              <label className={styles.label}>
+                Preferred Protected Area
+              </label>
+
+              <select
+                className={styles.input}
+                value={preferredArea}
+                onChange={(e) => {
+
+                  setPreferredArea(e.target.value)
+
+                  sessionStorage.setItem(
+                    'preferredArea',
+                    e.target.value
+                  )
+                }}
+                required
+              >
+
+                <option value="">
+                  Select Preferred Area
+                </option>
+
+                <option value="Bako National Park">
+                  Bako National Park
+                </option>
+
+                <option value="Semenggoh">
+                  Semenggoh
+                </option>
+
+                <option value="Gua Niah">
+                  Gua Niah
+                </option>
+
+                <option value=" Miri Coastal & Marine">
+                  Miri Coastal & Marine
+                </option>
+
+                <option value="Kubah Rainforest">
+                  Kubah Rainforest
+                </option>
+
+              </select>
+
+            </div>
+
+            <div className={styles.noticeBox}>
+
+            <h4>📝 General Pre-Registration Assessment</h4>
+
+            <p>
+              All applicants must complete the general assessment test before registration.
+            </p>
+
+            <p>
+              The assessment covers wildlife safety, eco-tourism ethics, emergency response, and environmental awareness.
+            </p>
+
+            <button
+              type="button"
+              className={styles.signupBtn}
+              onClick={() =>
+                navigate('/assessment')
+              }
+            >
+              🌐 Take Assessment Test
+            </button>
+
+          </div>
+
+          <div className={styles.fieldGroup}>
+
+          <label className={styles.label}>
+            🧠 Assessment Score (Only the highest score will be used)
+            </label>
+
+          <input
+            type="number"
+            className={styles.input}
+            value={assessmentScore}
+            readOnly
+          />
+
+        </div>
 
             <div className={styles.fieldGroup}>
 
             <label className={styles.label}>
-                Preferred Training Courses 
+              📄 Supporting Documents (Optional)
             </label>
 
             <p className={styles.formHint}>
-                Select one or more courses you are interested in.
+              Upload certificates or training proof if available.
             </p>
 
-            <div className={styles.moduleGrid}>
+            <input
+              type="file"
+              className={styles.input}
+              accept=".pdf,.jpg,.jpeg,.png"
+              onChange={(e) =>
+                setDocumentFile(e.target.files[0])
+              }
+            />
 
-                {MODULE_OPTIONS.map((module) => (
-
-                <label
-                    key={module}
-                    className={styles.moduleOption}
-                >
-
-                    <input
-                    type="checkbox"
-                    checked={selectedModules.includes(module)}
-                    onChange={() => toggleModule(module)}
-                    />
-
-                    <span>{module}</span>
-
-                </label>
-                ))}
-
-            </div>
-            </div>
+          </div>
 
             <div className={styles.fieldGroup}>
+
               <label className={styles.label}>
                 Password
               </label>
@@ -286,18 +610,51 @@ function RegisterPage() {
                 }
                 required
               />
+
             </div>
 
+            <div className={styles.noticeBox}>
+
+            <h4>💳 Training Fee Notice</h4>
+
+            <p>
+              General training modules are free for all newly approved park guides.
+            </p>
+
+            <ul>
+              <li>
+                🌿 Protected Area Guiding Course (Semenggoh) - RM50
+              </li>
+
+              <li>
+                🪨 Protected Area Guiding Course (Gua Niah) - RM80
+              </li>
+
+              <li>
+                🦧 Wildlife Protection Advanced Training - RM40
+              </li>
+            </ul>
+
+            <p>
+              ⚠️ Payment is required only after administrator approval.
+            </p>
+
+          </div>
+
             {error && (
+
               <div className={styles.errorBox}>
                 ⚠️ {error}
               </div>
+
             )}
 
             {message && (
+
               <div className={styles.successBox}>
                 ✅ {message}
               </div>
+
             )}
 
             <button
@@ -305,9 +662,11 @@ function RegisterPage() {
               className={styles.loginBtn}
               disabled={loading}
             >
+
               {loading
                 ? 'Creating Account...'
                 : 'Register'}
+
             </button>
 
             <button
@@ -319,6 +678,7 @@ function RegisterPage() {
             </button>
 
           </form>
+
         </div>
       </div>
     </div>

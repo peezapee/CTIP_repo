@@ -11,19 +11,19 @@ import AlertsPanel from './AlertsPanel';
 import TrainingModuleManager from './TrainingModuleManager';
 import GuideEnrollment from './GuideEnrollment';
 import ProgressTracking from './ProgressTracking';
-import CertificateManager from './CertificateManager';
+import BadgeManager from './BadgeManager';
 import GuideManagementPanel from './GuideManagementPanel'
-
+import SettingsPanel from './SettingsPanel'
 
 function AdminDashboard({ activeTab, onTabChange }) {
 
   const [users, setUsers] = useState([])
   const [modules, setModules] = useState([])
-  const [certificates, setCertificates] = useState([])
+  const [badges, setBadges] = useState([])
   const [stats, setStats] = useState([
     { label: 'Total Guides', value: '0', icon: '👥', trend: 'Active guides', color: '#2d6a4f', tab: 'guides' },
     { label: 'Active Modules', value: '0', icon: '📚', trend: 'Training modules', color: '#3a86ff', tab: 'modules' },
-    { label: 'Certifications', value: '0', icon: '🎖️', trend: 'Issued certificates', color: '#e9c46a', tab: 'certificate' },
+    { label: 'Badges', value: '0', icon: '🎖️', trend: 'Issued badges', color: '#e9c46a', tab: 'badge' },
   ]);
 
   // ===== FETCH USERS =====
@@ -49,7 +49,7 @@ function AdminDashboard({ activeTab, onTabChange }) {
   useEffect(() => {
   fetchUsers();
   fetchModules();
-  fetchCertificates();
+  fetchBadges();
 }, []);
 
 const fetchModules = async () => {
@@ -61,12 +61,12 @@ const fetchModules = async () => {
   }
 }
 
-const fetchCertificates = async () => {
+const fetchBadges = async () => {
   try {
-    const querySnapshot = await getDocs(collection(db, "certificates"))
-    setCertificates(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))
+    const querySnapshot = await getDocs(collection(db, "badges"))
+    setBadges(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))
   } catch (error) {
-    console.error("Error fetching certificates:", error)
+    console.error("Error fetching badges:", error)
   }
 }
 
@@ -76,9 +76,9 @@ useEffect(() => {
   setStats([
     { label: 'Total Guides', value: guides.length.toString(), icon: '👥', trend: 'Active guides', color: '#2d6a4f', tab: 'guides' },
     { label: 'Active Modules', value: modules.length.toString(), icon: '📚', trend: 'Training modules', color: '#3a86ff', tab: 'modules' },
-    { label: 'Certifications', value: certificates.length.toString(), icon: '🎖️', trend: 'Issued certificates', color: '#e9c46a', tab: 'certificate' },
+    { label: 'Badges', value: badges.length.toString(), icon: '🎖️', trend: 'Issued badges', color: '#e9c46a', tab: 'badge' },
   ])
-}, [users, modules, certificates]);
+}, [users, modules, badges]);
 
   // ===== MAIN RENDER =====
   const renderContent = () => {
@@ -280,14 +280,14 @@ useEffect(() => {
                   }}
                   onClick={() =>
                     onTabChange &&
-                    onTabChange('certificate')
+                    onTabChange('badge')
                   }
                 >
                   <span className={styles.actionIcon}>
                     🎖️
                   </span>
 
-                  <span>Manage Certs</span>
+                  <span>Manage Badges</span>
                 </button>
 
               </div>
@@ -349,8 +349,11 @@ useEffect(() => {
     case 'progress':
       return <ProgressTracking />
 
-    case 'certificate':
-      return <CertificateManager isAdmin={true} />
+    case 'badge':
+      return <BadgeManager isAdmin={true} />
+
+    case 'settings':
+      return ( <SettingsPanel user={auth.currentUser} />)
 
     default:
       return (

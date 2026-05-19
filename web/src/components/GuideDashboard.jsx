@@ -1,6 +1,6 @@
 // components/GuideDashboard.jsx
 // Shows the Park Guide's personal dashboard.
-// Different from admin — guides see THEIR OWN training, progress, certs.
+// Different from admin — guides see THEIR OWN training, progress, badges.
 //
 // Props:
 //   activeTab = which sidebar tab is active
@@ -11,21 +11,23 @@ import React, { useState, useEffect } from 'react'
 import { collection, getDocs, query, where } from 'firebase/firestore'
 import { db } from '../firebase.js'
 import styles from './Dashboard.module.css'
+import SettingsPanel from './SettingsPanel'
+import { auth } from '../firebase'
 
 import MonitorPanel from './MonitorPanel'
 import GuideCourseList from './GuideCourseList'
-import CertificateManager from './CertificateManager'
+import BadgeManager from './BadgeManager'
 
 function GuideDashboard({ activeTab, user, onTabChange }) {
   const [enrollments, setEnrollments] = useState([])
   const [modules, setModules] = useState([])
-  const [certificates, setCertificates] = useState([])
+  const [badges, setBadges] = useState([])
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     if (user?.uid) {
       fetchEnrollments()
-      fetchCertificates()
+      fetchBadges()
     }
     fetchModules()
   }, [user?.uid])
@@ -52,15 +54,15 @@ function GuideDashboard({ activeTab, user, onTabChange }) {
     }
   }
 
-  const fetchCertificates = async () => {
+  const fetchBadges = async () => {
     try {
-      const querySnapshot = await getDocs(collection(db, 'certificates'))
-      const certList = querySnapshot.docs
+      const querySnapshot = await getDocs(collection(db, 'badges'))
+      const badgeList = querySnapshot.docs
         .map(doc => ({ id: doc.id, ...doc.data() }))
-        .filter(c => c.guideId === user?.uid)
-      setCertificates(certList)
+        .filter(b => b.guideId === user?.uid)
+      setBadges(badgeList)
     } catch (error) {
-      console.error('Error fetching certificates:', error)
+      console.error('Error fetching badges:', error)
     }
   }
 
@@ -111,8 +113,8 @@ function GuideDashboard({ activeTab, user, onTabChange }) {
         const completed = enrollments.filter(e => e.status === 'passed').length
         const total = enrollments.length
         const overallProgress = total > 0 ? Math.round((completed / total) * 100) : 0
-        const validCerts = certificates.filter(c => !isExpired(c.expiresAt)).length
-        const expiredCerts = certificates.filter(c => isExpired(c.expiresAt)).length
+        const validBadges = badges.filter(b => !isExpired(b.expiresAt)).length
+        const expiredBadges = badges.filter(b => isExpired(b.expiresAt)).length
 
         return (
           <>
@@ -120,7 +122,7 @@ function GuideDashboard({ activeTab, user, onTabChange }) {
             <div className={styles.welcomeBanner}>
               <div className={styles.bannerContent}>
                 <h3>Welcome, {user?.name || 'Guide'}! 🌿</h3>
-                <p>You're doing great! Keep up with your training to earn certifications.</p>
+                <p>You're doing great! Keep up with your training to earn badges.</p>
               </div>
               <div className={styles.bannerProgress}>
                 <div className={styles.progressCircleAlt}>
@@ -160,8 +162,8 @@ function GuideDashboard({ activeTab, user, onTabChange }) {
                 <div className={styles.statCardInner}>
                   <div className={styles.statIcon}>🎖️</div>
                   <div className={styles.statContent}>
-                    <div className={styles.statLabel}>Valid Certs</div>
-                    <div className={styles.statValue}>{validCerts}</div>
+                    <div className={styles.statLabel}>Valid Badges</div>
+                    <div className={styles.statValue}>{validBadges}</div>
                     <div className={styles.statTrend}>🔹 Earn more!</div>
                   </div>
                 </div>
@@ -170,8 +172,8 @@ function GuideDashboard({ activeTab, user, onTabChange }) {
                 <div className={styles.statCardInner}>
                   <div className={styles.statIcon}>⚠️</div>
                   <div className={styles.statContent}>
-                    <div className={styles.statLabel}>Expired Certs</div>
-                    <div className={styles.statValue}>{expiredCerts}</div>
+                    <div className={styles.statLabel}>Expired Badges</div>
+                    <div className={styles.statValue}>{expiredBadges}</div>
                     <div className={styles.statTrend}>🔹 Renew soon</div>
                   </div>
                 </div>
@@ -222,7 +224,7 @@ function GuideDashboard({ activeTab, user, onTabChange }) {
             <div className={styles.ctaCard}>
               <div className={styles.ctaContent}>
                 <h3>🎯 Next Steps</h3>
-                <p>Continue your training to earn certificates and advance your skills.</p>
+                <p>Continue your training to earn badges and advance your skills.</p>
                 <button className={styles.primaryBtn} style={{ marginTop: '15px' }} onClick={handleStartNextModule}>
                   Start Next Module →
                 </button>
@@ -235,9 +237,16 @@ function GuideDashboard({ activeTab, user, onTabChange }) {
       case 'training':
         return <GuideCourseList userId={user?.uid} />
 
-      // ── CERTIFICATES TAB ──
-      case 'certificate':
-        return <CertificateManager userId={user?.uid} isAdmin={false} />
+        case 'settings':
+          return (
+            <SettingsPanel
+              user={auth.currentUser}
+            />
+          )
+
+      // ── BADGES TAB ──
+      case 'badge':
+        return <BadgeManager userId={user?.uid} isAdmin={false} />
 
       // ── NOTIFICATIONS TAB ──
       case 'alerts':

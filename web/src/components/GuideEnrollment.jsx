@@ -2,7 +2,13 @@
 // Admin panel to enroll guides into training modules
 
 import React, { useState, useEffect } from 'react'
-import { collection, getDocs, addDoc, deleteDoc, doc } from 'firebase/firestore'
+import {
+  collection,
+  getDocs,
+  addDoc,
+  updateDoc,
+  doc
+} from 'firebase/firestore'
 import { db } from '../firebase.js'
 import styles from './Dashboard.module.css'
 
@@ -10,14 +16,13 @@ function GuideEnrollment() {
   const [guides, setGuides] = useState([])
   const [modules, setModules] = useState([])
   const [enrollments, setEnrollments] = useState([])
-  const [selectedGuide, setSelectedGuide] = useState('')
-  const [selectedModule, setSelectedModule] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [moduleRequests, setModuleRequests] = useState([])
 
   useEffect(() => {
     fetchGuides()
     fetchModules()
     fetchEnrollments()
+    fetchRequests()
   }, [])
 
   const fetchGuides = async () => {
@@ -52,58 +57,31 @@ function GuideEnrollment() {
     }
   }
 
-  const handleEnroll = async (e) => {
-    e.preventDefault()
-    if (!selectedGuide || !selectedModule) {
-      alert('❌ Please select both a guide and module')
-      return
-    }
+  const fetchRequests = async () => {
 
-    // Check if already enrolled
-    const alreadyEnrolled = enrollments.some(
-      (e) => e.guideId === selectedGuide && e.moduleId === selectedModule
+  try {
+
+    const querySnapshot =
+      await getDocs(
+        collection(db, 'moduleRequests')
+      )
+
+    const requestList =
+      querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }))
+
+    setModuleRequests(requestList)
+
+  } catch (error) {
+
+    console.error(
+      'Error fetching requests:',
+      error
     )
-    if (alreadyEnrolled) {
-      alert('⚠️ Guide is already enrolled in this module')
-      return
-    }
-
-    setLoading(true)
-    try {
-      await addDoc(collection(db, 'enrollments'), {
-        guideId: selectedGuide,
-        moduleId: selectedModule,
-        enrolledAt: new Date().toISOString(),
-        progress: 0,
-        status: 'in-progress',
-        score: null,
-        completedAt: null,
-      })
-      
-      alert('✅ Guide enrolled successfully')
-      setSelectedGuide('')
-      setSelectedModule('')
-      fetchEnrollments()
-    } catch (error) {
-      console.error('Error enrolling guide:', error)
-      alert('❌ Error enrolling guide')
-    } finally {
-      setLoading(false)
-    }
   }
-
-  const handleRemoveEnrollment = async (enrollmentId) => {
-    if (!window.confirm('Remove this enrollment?')) return
-
-    try {
-      await deleteDoc(doc(db, 'enrollments', enrollmentId))
-      alert('✅ Enrollment removed')
-      fetchEnrollments()
-    } catch (error) {
-      console.error('Error removing enrollment:', error)
-      alert('❌ Error removing enrollment')
-    }
-  }
+}
 
   const getGuideName = (guideId) => {
     return guides.find((g) => g.uid === guideId)?.name || 'Unknown'
@@ -146,57 +124,119 @@ const groupedByModule =
       )
   }))
 
+  const handleApproveRequest =
+  async (request) => {
+
+    try {
+
+      await addDoc(
+        collection(db, 'enrollments'),
+        {
+
+          guideId: request.guideId,
+
+          moduleId: request.moduleId,
+
+          progress: 0,
+
+          status: 'in-progress',
+
+          enrolledAt:
+            new Date().toISOString()
+        }
+      )
+
+      await updateDoc(
+        doc(
+          db,
+          'moduleRequests',
+          request.id
+        ),
+        {
+          status: 'approved'
+        }
+      )
+
+      alert(
+        '✅ Access approved'
+      )
+
+      fetchEnrollments()
+      fetchRequests()
+
+    } catch (error) {
+
+      console.error(error)
+    }
+}
+
   return (
     <div>
       <div className={styles.pageHeader}>
-        <h2 className={styles.pageTitle}>👥 Guide Enrollment</h2>
+        <h2 className={styles.pageTitle}>📚 Active Enrollments</h2>
       </div>
 
-      {/* Enrollment Form */}
-      <div className={styles.formCard}>
-        <h3>Enroll Guide in Module</h3>
-        <form onSubmit={handleEnroll}>
-          <div className={styles.formRow}>
-            <div className={styles.formGroup}>
-              <label>Select Guide *</label>
-              <select
-                value={selectedGuide}
-                onChange={(e) => setSelectedGuide(e.target.value)}
-                required
-              >
-                <option value="">-- Choose a guide --</option>
-                {guides.map((guide) => (
-                  <option key={guide.uid} value={guide.uid}>
-                    {guide.name} ({guide.email})
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className={styles.formGroup}>
-              <label>Select Module *</label>
-              <select
-                value={selectedModule}
-                onChange={(e) => setSelectedModule(e.target.value)}
-                required
-              >
-                <option value="">-- Choose a module --</option>
-                {modules.map((module) => (
-                  <option key={module.id} value={module.id}>
-                    {module.title}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <button type="submit" disabled={loading} className={styles.primaryBtn}>
-            {loading ? '⏳ Enrolling...' : '✅ Enroll Guide'}
-          </button>
-        </form>
-      </div>
+      <div style={{ marginTop: '40px' }}>
+
+  <h2 className={styles.pageTitle}>
+    🔓 Module Access Requests
+  </h2>
+
+  {moduleRequests.filter(
+    r => r.status === 'pending'
+  ).length === 0 ? (
+
+    <p>No pending requests.</p>
+
+  ) : (
+
+    <div className={styles.tableContainer}>
+
+      <table className={styles.dataTable}>
+
+        <thead>
+          <tr>
+            <th>Guide</th>
+            <th>Requested Module</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+
+        <tbody>
+
+          {moduleRequests
+            .filter(
+              r => r.status === 'pending'
+            )
+            .map((request) => (
+
+          <tr key={request.id}>
+            <td>{formatName(getGuideName(request.guideId))}</td>
+            <td>{getModuleName(request.moduleId)}</td>
+            <td>
+              <div className={styles.receiptActions}>
+                <a className={styles.eyeBtn} href={request.receiptURL} target="_blank" rel="noreferrer">
+                  👁
+                </a>
+                <button className={styles.approveBtn} onClick={() => handleApproveRequest(request)}>
+                  ✅ Approve
+                </button>
+              </div>
+            </td>
+          </tr>
+          ))}
+
+        </tbody>
+
+      </table>
+
+    </div>
+  )}
+
+</div>
 
       {/* Active Enrollments */}
       <div style={{ marginTop: '40px' }}>
-        <h3 style={{ marginBottom: '20px' }}>Active Enrollments</h3>
         {enrollments.length === 0 ? (
           <p style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
             No active enrollments yet.
@@ -212,22 +252,34 @@ const groupedByModule =
               className={styles.moduleEnrollmentCard}
               style={{
                 borderLeft:
-                  module.title.includes('Biodiversity')
+                  module.title.includes('Miri Coastal & Marine Conservation Guiding')
                     ? '6px solid #2d6a4f'
-                    : module.title.includes('Wildlife')
+                    : module.title.includes('Semenggoh Nature Reserve Guiding')
                     ? '6px solid #3a86ff'
-                    : '6px solid #e9c46a'
+                    : module.title.includes('Gua Niah Conservation Guiding')
+                    ? '6px solid #e9c46a'
+                    : module.title.includes('Bako National Park Eco-Tourism')
+                    ? '6px solid #ef74bc'
+                    : module.title.includes('Kubah National Park Conservation Guiding')
+                    ? '6px solid #714ce2'
+                    : '6px solid #ccc'
               }}
             >
 
               <h3
                 style={{
                   color:
-                    module.title.includes('Biodiversity')
+                    module.title.includes('Miri Coastal & Marine Conservation Guiding')
                       ? '#2d6a4f'
-                      : module.title.includes('Wildlife')
+                      : module.title.includes('Semenggoh Nature Reserve Guiding')
                       ? '#3a86ff'
-                      : '#d4a017'
+                      : module.title.includes('Gua Niah Conservation Guiding')
+                      ? '#d4a017'
+                      : module.title.includes('Bako National Park Eco-Tourism')
+                      ? '#ef74bc'
+                      : module.title.includes('Kubah National Park Conservation Guiding')
+                      ? '#714ce2'
+                      : '6px solid #ccc'
                 }}
               >
                 {module.title}

@@ -59,9 +59,9 @@ const TABS = [
   },
 
   {
-    id: 'certificate',
+    id: 'badge',
     icon: '🎖️',
-    label: 'Certificates',
+    label: 'Badges',
   },
 
   {
@@ -81,7 +81,6 @@ const TABS = [
     id: 'settings',
     icon: '⚙️',
     label: 'Settings',
-    adminOnly: true,
   },
 ]
 

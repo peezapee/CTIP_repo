@@ -178,7 +178,7 @@ function DashboardPage({ user, onLogout }) {
 
   <>
     {/* block admin tabs */}
-    {['guides', 'modules', 'settings'].includes(activeTab) ? (
+    {['guides', 'modules'].includes(activeTab) ? (
 
       <div>
         <h1>Access Denied</h1>

@@ -2,7 +2,15 @@
 // Display available and enrolled courses for guides
 
 import React, { useState, useEffect } from 'react'
-import { collection, getDocs, query, where, updateDoc, doc } from 'firebase/firestore'
+import {
+  collection,
+  getDocs,
+  query,
+  where,
+  updateDoc,
+  doc,
+  addDoc
+} from 'firebase/firestore'
 import { db } from '../firebase.js'
 import styles from './Dashboard.module.css'
 import QuizComponent from './QuizComponent'
@@ -13,13 +21,19 @@ function GuideCourseList({ userId }) {
   const [selectedEnrollment, setSelectedEnrollment] = useState(null)
   const [showQuiz, setShowQuiz] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [moduleRequests, setModuleRequests] = useState([])
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [selectedModule, setSelectedModule] = useState(null)
+  const [receiptFile, setReceiptFile] = useState(null)
+  const [paymentError, setPaymentError] = useState('')
 
-  useEffect(() => {
-    fetchModules()
-    if (userId) {
-      fetchEnrollments()
-    }
-  }, [userId])
+useEffect(() => {
+  fetchModules()
+  if (userId) {
+    fetchEnrollments()
+    fetchRequests()
+  }
+}, [userId])
 
   const fetchModules = async () => {
     try {
@@ -48,6 +62,32 @@ function GuideCourseList({ userId }) {
     }
   }
 
+  const fetchRequests = async () => {
+
+  try {
+
+    const snapshot =
+      await getDocs(
+        collection(db, 'moduleRequests')
+      )
+
+    const requestList =
+      snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }))
+
+    setModuleRequests(requestList)
+
+  } catch (error) {
+
+    console.error(
+      'Error fetching requests:',
+      error
+    )
+  }
+}
+
   const getEnrollmentStatus = (moduleId) => {
     const enrollment = enrollments.find((e) => e.moduleId === moduleId)
     return enrollment
@@ -74,17 +114,125 @@ function GuideCourseList({ userId }) {
       
       // Refresh enrollments after update
       await fetchEnrollments()
-
-      setShowQuiz(false)
-      alert(
-        quizResults.passed
-          ? '✅ Congratulations! You passed the quiz.'
-          : '📚 Keep learning and try again.'
-      )
     } catch (error) {
       console.error('Error completing quiz:', error)
     }
   }
+
+  const handleRequestAccess = async (moduleId) => {
+
+  try {
+
+    await addDoc(
+      collection(db, 'moduleRequests'),
+      {
+
+        guideId: userId,
+
+        moduleId,
+
+        status: 'pending',
+
+        requestedAt:
+          new Date().toISOString()
+      }
+    )
+
+    alert(
+      '✅ Request sent to admin'
+    )
+
+    fetchRequests()
+
+  } catch (error) {
+
+    console.error(error)
+
+    alert(
+      '❌ Failed to send request'
+    )
+  }
+}
+
+const submitPaymentRequest = async () => {
+
+  if (!receiptFile) {
+
+    setPaymentError(
+    'Please upload receipt.'
+  )
+    return
+  }
+
+  try {
+
+    const formData =
+      new FormData();
+
+    formData.append(
+      "receipt",
+      receiptFile
+    );
+
+    const uploadResponse =
+      await fetch(
+
+        "http://localhost:3000/upload-receipt",
+
+        {
+          method: "POST",
+          body: formData
+        }
+    );
+
+    const uploadData =
+      await uploadResponse.json();
+
+    const receiptURL =
+      uploadData.receiptURL;
+
+    await addDoc(
+      collection(db, 'moduleRequests'),
+      {
+
+        guideId: userId,
+
+        moduleId: selectedModule.id,
+
+        moduleTitle: selectedModule.title,
+
+        price: selectedModule.price,
+
+        receiptName:
+          receiptFile.name,
+        receiptURL,
+
+        status: 'pending',
+
+        requestedAt:
+          new Date().toISOString()
+      }
+    )
+
+    alert(
+      '✅ Payment request submitted'
+    )
+
+    setShowPaymentModal(false)
+
+    setReceiptFile(null)
+
+    fetchRequests()
+
+  } catch (error) {
+
+    console.error(error)
+
+    alert(
+      '❌ Failed to submit request'
+    )
+  }
+}
 
   const categoryEmoji = {
     conservation: '🌍',
@@ -96,6 +244,7 @@ function GuideCourseList({ userId }) {
 
   if (showQuiz && selectedEnrollment) {
     const module = modules.find((m) => m.id === selectedEnrollment.moduleId)
+
     return (
       <div>
         <button
@@ -116,24 +265,121 @@ function GuideCourseList({ userId }) {
     )
   }
 
+  const enrolledModules =
+  modules.filter(module =>
+    enrollments.some(
+      e => e.moduleId === module.id
+    )
+  )
+
+const lockedModules =
+  modules.filter(module =>
+    !enrollments.some(
+      e => e.moduleId === module.id
+    )
+  )
+
   return (
     <div>
+      {showPaymentModal && (
+      <div className={styles.modalOverlay}>
+
+        <div className={styles.paymentModal}>
+
+          <h2>
+            Unlock Module
+          </h2>
+
+          <p>
+            {selectedModule?.title}
+          </p>
+
+          <h3>
+            💰 RM {selectedModule?.price}
+          </h3>
+
+          <img
+            src="/images/bankqr.png"
+            alt="Payment QR"
+            className={styles.qrImage}
+          />
+
+          <p
+            style={{
+              marginBottom: '15px'
+            }}
+          >
+            Scan QR code and upload receipt.
+          </p>
+
+          {paymentError && (
+            <p className={styles.errorText}>
+              {paymentError}
+            </p>
+          )}
+
+          <input
+            type="file"
+            onChange={(e) =>
+              setReceiptFile(
+                e.target.files[0]
+              )
+            }
+          />
+
+          <button
+            className={styles.primaryBtn}
+            onClick={submitPaymentRequest}
+          >
+            Submit Receipt
+          </button>
+
+          <button
+            className={styles.secondaryBtn}
+            onClick={() =>
+              setShowPaymentModal(false)
+            }
+          >
+            Cancel
+          </button>
+
+        </div>
+
+      </div>
+    )}
       <div className={styles.pageHeader}>
         <h2 className={styles.pageTitle}>📚 Training Courses</h2>
       </div>
 
-      {enrollments.length === 0 ? (
-        <div className={styles.emptyState}>
-          <p>📭 No courses assigned yet. Contact your admin to enroll in training modules.</p>
-        </div>
-      ) : (
-        <div className={styles.coursesGrid}>
-          {enrollments.map((enrollment) => {
-            const module = modules.find((m) => m.id === enrollment.moduleId)
-            if (!module) return null
+      <h3 style={{ marginBottom: '15px' }}>
+        Your Modules
+      </h3>
 
+      <div className={styles.coursesGrid}>
+          {enrolledModules.map((module) => {
+
+          const enrollment =
+            enrollments.find(
+              e => e.moduleId === module.id
+            )
+
+          const pendingRequest =
+            moduleRequests.find(
+              r =>
+                r.moduleId === module.id &&
+                r.guideId === userId &&
+                r.status === 'pending'
+            )
+            
             return (
-              <div key={enrollment.id} className={styles.courseCard}>
+              <div
+                key={module.id}
+                className={
+                  enrollment
+                    ? styles.courseCard
+                    : `${styles.courseCard} ${styles.lockedCard}`
+                }
+              >
                 <div className={styles.courseHeader}>
                   <h3>
                     {categoryEmoji[module.category]} {module.title}
@@ -142,6 +388,12 @@ function GuideCourseList({ userId }) {
                 </div>
 
                 <p className={styles.courseDesc}>{module.description}</p>
+                <p style={{
+                    fontWeight: 'bold',
+                    color: '#e63946',
+                    marginBottom: '15px',
+                    fontSize: '18px'}}>💰 RM {module.price}
+                </p>
 
                 <div className={styles.courseStats}>
                   <span>⏱️ {module.duration} minutes</span>
@@ -150,12 +402,12 @@ function GuideCourseList({ userId }) {
 
                 <div className={styles.progressSection}>
                   <p style={{ fontSize: '14px', marginBottom: '8px' }}>
-                    Progress: {enrollment.progress}%
+                    Progress: {enrollment ? enrollment.progress : 0}%
                   </p>
                   <div className={styles.progressBarLarge}>
                     <div
                       className={styles.progressFill}
-                      style={{ width: `${enrollment.progress}%` }}
+                      style={{ width: `${enrollment ? enrollment.progress : 0}%` }}
                     />
                   </div>
                 </div>
@@ -165,36 +417,146 @@ function GuideCourseList({ userId }) {
                     className={styles.statusBadge}
                     style={{
                       backgroundColor:
-                        enrollment.status === 'completed'
+                        enrollment?.status === 'completed'
                           ? '#06a77d'
-                          : enrollment.status === 'passed'
+                          : enrollment?.status === 'passed'
                             ? '#2d6a4f'
                             : '#3a86ff',
                     }}
                   >
-                    {enrollment.status}
+                    {enrollment?.status}
                   </span>
-                  {enrollment.score !== null && <span>Score: {enrollment.score}%</span>}
+                  {enrollment?.score != null && (
+                  <span>
+                    Score: {enrollment.score}%
+                  </span>
+                )}
                 </div>
 
-                <button
-                  className={styles.primaryBtn}
-                  onClick={() => handleStartCourse(enrollment)}
-                  disabled={enrollment.status === 'passed'}
-                >
-                  {enrollment.status === 'passed'
-                    ? '✅ Completed'
-                    : enrollment.progress > 0
+                {enrollment ? (
+
+                  <button
+                    className={styles.primaryBtn}
+                    onClick={() =>
+                      handleStartCourse(enrollment)
+                    }
+                    disabled={
+                      enrollment?.status === 'passed'
+                    }
+                  >
+
+                    {enrollment?.status === 'passed'
+                      ? '✅ Completed'
+                      : enrollment.progress > 0
                       ? 'Continue Course'
                       : 'Start Course'}
-                </button>
+
+                  </button>
+
+                ) : pendingRequest ? (
+
+                  <button
+                    className={styles.secondaryBtn}
+                    disabled
+                  >
+                    ⏳ Pending Approval
+                  </button>
+
+                ) : (
+
+                  <button
+                    className={styles.primaryBtn}
+                    onClick={() => {
+
+                      setSelectedModule(module)
+
+                      setShowPaymentModal(true)
+
+                    }}
+                  >
+                    🔒 Unlock Module
+                  </button>
+
+                )}
+
               </div>
             )
           })}
-        </div>
-      )}
-    </div>
-  )
-}
+          </div>
+
+          <h3 style={{
+            marginTop: '40px',
+            marginBottom: '15px'
+          }}>
+            Available Modules
+          </h3>
+          <h4>
+            Purchase access to unlock these protected area training modules.
+          </h4>
+          <div className={styles.coursesGrid}>
+
+            {lockedModules.map((module) => {
+
+              const pendingRequest =
+                moduleRequests.find(
+                  r =>
+                    r.moduleId === module.id &&
+                    r.guideId === userId &&
+                    r.status === 'pending'
+                )
+
+              return (
+
+                <div
+                  key={module.id}
+                  className={`${styles.courseCard} ${styles.lockedCard}`}
+                >
+
+                  <div className={styles.courseHeader}>
+                    <h3>{module.title}</h3>
+
+                    <span className={styles.badge}>
+                      {module.category}
+                    </span>
+                  </div>
+
+                  <p className={styles.courseDesc}>
+                    {module.description}
+                  </p>
+
+                  {pendingRequest ? (
+
+                    <button
+                      className={styles.secondaryBtn}
+                      disabled
+                    >
+                      ⏳ Pending Approval
+                    </button>
+
+                  ) : (
+
+                    <button
+                      className={styles.primaryBtn}
+                        onClick={() => {
+
+                          setSelectedModule(module)
+
+                          setShowPaymentModal(true)
+
+                        }}
+                    >
+                      🔒 Request Access
+                    </button>
+
+                  )}
+
+                </div>
+              )
+            })}
+
+          </div>
+          </div>
+            )
+          }
 
 export default GuideCourseList

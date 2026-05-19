@@ -91,7 +91,7 @@ function ProgressTracking() {
           <div className={styles.statValue}>
             {enrollments.filter((e) => e.status === 'passed').length}
           </div>
-          <div className={styles.statLabel}>Certified</div>
+          <div className={styles.statLabel}>Badges</div>
         </div>
       </div>
 

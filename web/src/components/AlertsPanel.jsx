@@ -181,15 +181,19 @@ export default function AlertsPanel() {
                 severity === 'MEDIUM' ? '#e65100' : '#b8a000'
 
               return (
-                <div
-                  key={alert.id}
-                  className={styles.monitorListItem}
-                  style={{
-                    borderLeft: `4px solid ${severityColor}`,
-                    opacity: alert.reviewed ? 0.6 : 1,
-                    transition: 'opacity 0.2s',
-                  }}
-                >
+                  <div
+                    key={alert.id}
+                    className={styles.monitorListItem}
+                    style={{
+                      borderLeft: `4px solid ${severityColor}`,
+                      opacity: alert.reviewed ? 0.6 : 1,
+                      transition: 'opacity 0.2s',
+                      display: 'flex',          // ← add
+                      flexDirection: 'row',     // ← add
+                      alignItems: 'center',     // ← add
+                      gap: '12px',              // ← add
+                    }}
+                  >
                   <div style={{ flex: 1, minWidth: 0 }}>
                     {/* Header row */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
@@ -246,8 +250,8 @@ export default function AlertsPanel() {
 
                   {!alert.reviewed && (
                     <button
-                      className={styles.createBtn}
-                      style={{ flexShrink: 0, fontSize: '0.82rem', height: 34 }}
+                      className={styles.approveBtn} 
+                      style={{ flexShrink: 0, whiteSpace: 'nowrap' }}
                       disabled={markingId === alert.id}
                       onClick={() => markReviewed(alert.id)}
                     >

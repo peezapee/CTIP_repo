@@ -1,37 +1,37 @@
-// components/CertificateManager.jsx
-// Manage and display certificates for guides
+// components/BadgeManager.jsx
+// Manage and display badges for guides
 
 import React, { useState, useEffect } from 'react'
 import { collection, getDocs, addDoc, doc } from 'firebase/firestore'
 import { db } from '../firebase.js'
-import { generateCertificatePDF } from '../utils/certificateUtils.js'
+import { generateBadgePDF } from '../utils/BadgeUtils.js'
 import styles from './Dashboard.module.css'
 
-function CertificateManager({ userId, isAdmin = false }) {
-  const [certificates, setCertificates] = useState([])
+function BadgeManager({ userId, isAdmin = false }) {
+  const [badges, setBadges] = useState([])
   const [enrollments, setEnrollments] = useState([])
   const [modules, setModules] = useState([])
   const [guides, setGuides] = useState([])
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    fetchCertificates()
+    fetchBadges()
     fetchEnrollments()
     fetchModules()
     fetchGuides()
   }, [userId, isAdmin])
 
-  const fetchCertificates = async () => {
+  const fetchBadges = async () => {
     try {
-      const querySnapshot = await getDocs(collection(db, 'certificates'))
-      const allCerts = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-      console.log('All certificates in DB:', allCerts)
+      const querySnapshot = await getDocs(collection(db, 'badges'))
+      const allBadges = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      console.log('All badges in DB:', allBadges)
       console.log('Current userId:', userId)
-      const certList = isAdmin ? allCerts : allCerts.filter(c => c.guideId === userId)
-      console.log('Filtered certificates for user:', certList)
-      setCertificates(certList)
+      const badgeList = isAdmin ? allBadges : allBadges.filter(b => b.guideId === userId)
+      console.log('Filtered badges for user:', badgeList)
+      setBadges(badgeList)
     } catch (error) {
-      console.error('Error fetching certificates:', error)
+      console.error('Error fetching badges:', error)
     }
   }
 
@@ -69,9 +69,9 @@ function CertificateManager({ userId, isAdmin = false }) {
     }
   }
 
-  const handleIssueCertificate = async (enrollment) => {
-    if (certificates.some((c) => c.enrollmentId === enrollment.id)) {
-      alert('⚠️ Certificate already issued for this enrollment')
+  const handleIssueBadge = async (enrollment) => {
+    if (badges.some((b) => b.enrollmentId === enrollment.id)) {
+      alert('⚠️ Badge already issued for this enrollment')
       return
     }
 
@@ -80,22 +80,26 @@ function CertificateManager({ userId, isAdmin = false }) {
       const expiryDate = new Date()
       expiryDate.setFullYear(expiryDate.getFullYear() + 2) // 2-year validity
 
-      await addDoc(collection(db, 'certificates'), {
+      await addDoc(collection(db, 'badges'), {
         guideId: enrollment.guideId,
         moduleId: enrollment.moduleId,
         enrollmentId: enrollment.id,
-        title: `${getModuleName(enrollment.moduleId)} Certification`,
+        title:
+        getModuleName(enrollment.moduleId)
+          .replace('Guiding', '')
+          .replace('Eco-Tourism', '')
+          .trim() + ' Guide Badge',
         issuedAt: new Date().toISOString(),
         expiresAt: expiryDate.toISOString(),
-        certificateNumber: `CERT-${Date.now()}`,
+        BadgeNumber: `BADGE-${Date.now()}`,
         score: enrollment.score,
       })
       
-      alert('✅ Certificate issued successfully')
-      fetchCertificates()
+      alert('✅ Badge issued successfully')
+      fetchBadges()
     } catch (error) {
-      console.error('Error issuing certificate:', error)
-      alert('❌ Error issuing certificate')
+      console.error('Error issuing Badge:', error)
+      alert('❌ Error issuing Badge')
     } finally {
       setLoading(false)
     }
@@ -116,26 +120,26 @@ function CertificateManager({ userId, isAdmin = false }) {
   return (
     <div>
       <div className={styles.pageHeader}>
-        <h2 className={styles.pageTitle}>🎖️ Certificates</h2>
+        <h2 className={styles.pageTitle}>🎖️ Badges</h2>
       </div>
 
-      {/* Issued Certificates */}
+      {/* Issued Badges */}
       <div style={{ marginBottom: '40px' }}>
         <h3 style={{ marginBottom: '20px' }}>
-          {isAdmin ? 'Issued Certificates' : 'Your Certificates'}
+          {isAdmin ? 'Issued Badges' : 'Your Badges'}
         </h3>
-        {certificates.length === 0 ? (
+        {badges.length === 0 ? (
           <p style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
-            No certificates yet.
+            No badges yet.
           </p>
         ) : (
-          <div className={styles.certificatesGrid}>
-            {certificates.map((cert) => {
-              const expired = isExpired(cert.expiresAt)
+          <div className={styles.badgesGrid}>
+            {badges.map((badge) => {
+              const expired = isExpired(badge.expiresAt)
               return (
-                <div key={cert.id} className={styles.certificateCard}>
-                  <div className={styles.certHeader}>
-                    <h4>🎖️ {cert.title}</h4>
+                <div key={badge.id} className={styles.badgeCard}>
+                  <div className={styles.badgeHeader}>
+                    <h4>🎖️ {badge.title}</h4>
                     <span
                       className={styles.badge}
                       style={{
@@ -145,30 +149,30 @@ function CertificateManager({ userId, isAdmin = false }) {
                       {expired ? '❌ Expired' : '✅ Valid'}
                     </span>
                   </div>
-                  <div className={styles.certDetails}>
+                  <div className={styles.badgeDetails}>
                     <p>
-                      <strong>Certificate #:</strong> {cert.certificateNumber}
+                      <strong>Badge #:</strong> {badge.BadgeNumber}
                     </p>
                     <p>
                       <strong>Issued:</strong>{' '}
-                      {new Date(cert.issuedAt).toLocaleDateString()}
+                      {new Date(badge.issuedAt).toLocaleDateString()}
                     </p>
                     <p>
                       <strong>Expires:</strong>{' '}
-                      {new Date(cert.expiresAt).toLocaleDateString()}
+                      {new Date(badge.expiresAt).toLocaleDateString()}
                     </p>
                     <p>
-                      <strong>Score:</strong> {cert.score}%
+                      <strong>Score:</strong> {badge.score}%
                     </p>
                   </div>
                   <button 
                     className={styles.primaryBtn}
                     onClick={() => {
-                      const guideName = guides.find(g => g.uid === cert.guideId)?.name || 'Guide';
-                      generateCertificatePDF(cert, guideName);
+                      const guideName = guides.find(g => g.uid === badge.guideId)?.name || 'Guide';
+                      generateBadgePDF(badge, guideName);
                     }}
                   >
-                    📥 Download Certificate
+                    📥 Download Badge
                   </button>
                 </div>
               )
@@ -177,11 +181,11 @@ function CertificateManager({ userId, isAdmin = false }) {
         )}
       </div>
 
-      {/* Pending Certificates (Admin only) */}
+      {/* Pending Badges (Admin only) */}
       {isAdmin && enrollments.length > 0 && (
         <div>
           <h3 style={{ marginBottom: '20px' }}>
-            Pending Certificates (Passed but Not Issued)
+            Pending Badges (Passed but Not Issued)
           </h3>
           <div className={styles.tableContainer}>
             <table className={styles.table}>
@@ -202,10 +206,10 @@ function CertificateManager({ userId, isAdmin = false }) {
                     <td>
                       <button
                         className={styles.primaryBtn}
-                        onClick={() => handleIssueCertificate(enrollment)}
+                        onClick={() => handleIssueBadge(enrollment)}
                         disabled={loading}
                       >
-                        {loading ? '⏳ Issuing...' : '✅ Issue Certificate'}
+                        {loading ? '⏳ Issuing...' : '✅ Issue Badge'}
                       </button>
                     </td>
                   </tr>
@@ -219,4 +223,4 @@ function CertificateManager({ userId, isAdmin = false }) {
   )
 }
 
-export default CertificateManager
+export default BadgeManager

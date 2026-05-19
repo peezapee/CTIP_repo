@@ -15,11 +15,12 @@ function TrainingModuleManager() {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    category: 'conservation',
+    category: 'general',
     duration: 30,
     videoUrl: '',
     content: '',
     passingScore: 70,
+    price: 0,
     questions: '[]', // JSON array of questions
   })
 
@@ -45,7 +46,7 @@ function TrainingModuleManager() {
     const { name, value } = e.target
     setFormData((prev) => ({
       ...prev,
-      [name]: name === 'duration' || name === 'passingScore' ? parseInt(value) : value,
+      [name]: name === 'duration' || name === 'passingScore' || name === 'price' ? parseInt(value) : value,
     }))
   }
 
@@ -75,7 +76,7 @@ function TrainingModuleManager() {
       setFormData({
         title: '',
         description: '',
-        category: 'conservation',
+        category: 'general',
         duration: 30,
         videoUrl: '',
         content: '',
@@ -101,6 +102,7 @@ function TrainingModuleManager() {
       videoUrl: module.videoUrl,
       content: module.content,
       passingScore: module.passingScore,
+      price: module.price || 0,
       questions: typeof module.questions === 'string' ? module.questions : JSON.stringify(module.questions || []),
     })
     setEditingId(module.id)
@@ -121,11 +123,9 @@ function TrainingModuleManager() {
   }
 
   const categoryEmoji = {
-    conservation: '🌍',
-    biodiversity: '🦋',
-    'eco-tourism': '🌿',
-    legislation: '⚖️',
-    safety: '🦺',
+
+      general: '📘',
+      protected_area: '🌿',
   }
 
   return (
@@ -165,11 +165,13 @@ function TrainingModuleManager() {
               <div className={styles.formGroup}>
                 <label>Category *</label>
                 <select name="category" value={formData.category} onChange={handleInputChange}>
-                  <option value="conservation">Conservation</option>
-                  <option value="biodiversity">Biodiversity</option>
-                  <option value="eco-tourism">Eco-Tourism</option>
-                  <option value="legislation">Legislation</option>
-                  <option value="safety">Safety</option>
+                <option value="general">
+                  General Training
+                </option>
+
+                <option value="protected_area">
+                  Protected Area
+                </option>
                 </select>
               </div>
             </div>
@@ -199,6 +201,18 @@ function TrainingModuleManager() {
                   required
                 />
               </div>
+              <div className={styles.formGroup}>
+              <label>Price (RM) *</label>
+
+              <input
+                type="number"
+                name="price"
+                value={formData.price}
+                onChange={handleInputChange}
+                min="0"
+                required
+              />
+            </div>
             </div>
 
             <div className={styles.formGroup}>
@@ -262,11 +276,12 @@ function TrainingModuleManager() {
                   setFormData({
                     title: '',
                     description: '',
-                    category: 'conservation',
+                    category: 'general',
                     duration: 30,
                     videoUrl: '',
                     content: '',
                     passingScore: 70,
+                    price: 0,
                     questions: '[]',
                   })
                 }}
@@ -298,19 +313,16 @@ function TrainingModuleManager() {
               <div className={styles.moduleFooter}>
                 <span>⏱️ {module.duration} min</span>
                 <span>📊 Pass: {module.passingScore}%</span>
+                <span>💰 RM {module.price}</span>
                 <div>
-                  <button
-                    className={styles.editBtn}
-                    onClick={() => handleEdit(module)}
-                  >
-                    ✏️ Edit
+                <div className={styles.btnGroup}>
+                  <button className={styles.editBtn} onClick={() => handleEdit(module)}>
+                    <span className={styles.btnIcon}>✏️</span> Edit
                   </button>
-                  <button
-                    className={styles.deleteBtn}
-                    onClick={() => handleDelete(module.id)}
-                  >
-                    🗑️ Delete
+                  <button className={styles.deleteBtn} onClick={() => handleDelete(module.id)}>
+                    <span className={styles.btnIcon}>🗑️</span> Delete
                   </button>
+                  </div>
                 </div>
               </div>
             </div>

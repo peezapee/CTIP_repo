@@ -28,6 +28,15 @@ function GuideManagementPanel() {
   const [message, setMessage] = useState('')
   const [deleteId, setDeleteId] = useState(null)
 
+  const [selectedUser, setSelectedUser] =
+  useState(null)
+
+  const [notification, setNotification] =
+  useState('')
+
+  const [viewedUserId, setViewedUserId] =
+  useState(null)
+
   // ===== LOAD USERS =====
   const fetchUsers = async () => {
 
@@ -169,55 +178,11 @@ const approveUser = async (uid, userData) => {
       {
         role: 'guide',
 
-        enrolledModules:
-          userData.requestedModules || []
+        accountStatus: 'approved',
+
+        paymentStatus: 'pending',
       }
     )
-
-    // load training modules
-    const modulesSnapshot =
-      await getDocs(
-        collection(db, 'trainingModules')
-      )
-
-    const modules =
-      modulesSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data()
-      }))
-
-    // auto create enrollments
-    for (
-      const moduleName of
-      userData.requestedModules || []
-    ) {
-
-      const moduleDoc = modules.find(
-        (m) => m.title === moduleName
-      )
-
-      if (!moduleDoc) continue
-
-      await addDoc(
-        collection(db, 'enrollments'),
-        {
-          guideId: uid,
-
-          moduleId: moduleDoc.id,
-
-          enrolledAt:
-            new Date().toISOString(),
-
-          progress: 0,
-
-          status: 'in-progress',
-
-          score: null,
-
-          completedAt: null
-        }
-      )
-    }
 
     // activity log
     await addDoc(
@@ -239,7 +204,7 @@ const approveUser = async (uid, userData) => {
     fetchUsers()
 
     setMessage(
-      '✅ User approved successfully!'
+      '✅ Applicant approved and notification sent successfully!'
     )
 
   } catch (error) {
@@ -248,6 +213,70 @@ const approveUser = async (uid, userData) => {
 
     setMessage(
       '❌ Failed to approve user'
+    )
+  }
+}
+
+const rejectUser = async (uid) => {
+
+  try {
+
+    const user = auth.currentUser
+
+    const token =
+      await user.getIdToken()
+
+    const res = await fetch(
+      `http://localhost:3000/delete-guide/${uid}`,
+      {
+        method: 'DELETE',
+
+        headers: {
+          Authorization:
+            `Bearer ${token}`
+        }
+      }
+    )
+
+    const data =
+      await res.json()
+
+    if (data.success) {
+
+      await addDoc(
+        collection(db, 'logs'),
+        {
+          action: 'reject_guide',
+
+          adminName:
+            auth.currentUser.email,
+
+          targetUserId: uid,
+
+          timestamp:
+            serverTimestamp()
+        }
+      )
+
+      setMessage(
+        '❌ Applicant rejected'
+      )
+
+      fetchUsers()
+
+    } else {
+
+      setMessage(
+        '❌ ' + data.error
+      )
+    }
+
+  } catch (error) {
+
+    console.error(error)
+
+    setMessage(
+      '❌ Failed to reject applicant'
     )
   }
 }
@@ -286,6 +315,8 @@ const approveUser = async (uid, userData) => {
 
   ) : (
 
+    
+
     <div className={styles.tableWrapper}>
 
       <table className={styles.table}>
@@ -294,8 +325,7 @@ const approveUser = async (uid, userData) => {
           <tr>
             <th>Name</th>
             <th>Email</th>
-            <th>Requested Courses</th>
-            <th>Action</th>
+            <th>Actions</th>
           </tr>
         </thead>
 
@@ -310,19 +340,74 @@ const approveUser = async (uid, userData) => {
               <td>{user.email}</td>
 
               <td>
-                {(user.requestedModules || []).join(', ')}
-              </td>
 
-              <td>
+              <div className={styles.actionGroup}>
 
-                <button
-                  className={styles.createBtn}
-                  onClick={() =>
-                    approveUser(user.uid, user)
+              <button
+                className={styles.viewBtn}
+                  onClick={() => {
+
+                    setSelectedUser(user)
+
+                    setViewedUserId(user.uid)
+                  }}
+              >
+                👁
+              </button>
+
+              <button
+                className={styles.createBtn}
+
+                onClick={() => {
+
+                  if (
+                    viewedUserId !== user.uid
+                  ) {
+
+                    setNotification(
+                      '⚠️ Please check applicant information before approving.'
+                    )
+
+                    setTimeout(() => {
+                      setNotification('')
+                    }, 3000)
+
+                    return
                   }
-                >
-                  ✅ Approve
-                </button>
+
+                  approveUser(user.uid, user)
+                }}
+              >
+                ✅ Approve
+              </button>
+
+              <button
+                className={styles.deleteBtn}
+
+                onClick={() => {
+
+                  if (
+                    viewedUserId !== user.uid
+                  ) {
+
+                    setNotification(
+                      '⚠️ Please check applicant information before rejecting.'
+                    )
+
+                    setTimeout(() => {
+                      setNotification('')
+                    }, 3000)
+
+                    return
+                  }
+
+                  rejectUser(user.uid)
+                }}
+              >
+                ❌ Reject
+              </button>
+
+                </div>
 
               </td>
 
@@ -334,6 +419,93 @@ const approveUser = async (uid, userData) => {
     </div>
   )}
 </div>
+
+{selectedUser && (
+
+  <div className={styles.modalOverlay}>
+
+    <div className={styles.confirmBox}>
+
+    <h3>
+      👤 Applicant Details
+    </h3>
+
+    <div className={styles.detailRow}>
+      <strong>Name:</strong>
+      <span>{selectedUser.name}</span>
+    </div>
+
+    <div className={styles.detailRow}>
+      <strong>Email:</strong>
+      <span>{selectedUser.email}</span>
+    </div>
+
+    <div className={styles.detailRow}>
+      <strong>Education Level:</strong>
+      <span>{selectedUser.educationLevel}</span>
+    </div>
+
+    <div className={styles.detailRow}>
+      <strong>Guiding Experience:</strong>
+      <span>{selectedUser.experienceLevel}</span>
+    </div>
+
+    <div className={styles.detailRow}>
+      <strong>Preferred Area:</strong>
+      <span>{selectedUser.preferredArea}</span>
+    </div>
+
+    <div className={styles.detailRow}>
+      <strong>Assessment Score:</strong>
+      <span>{selectedUser.assessmentScore}</span>
+    </div>
+
+    <div className={styles.detailRow}>
+
+      <strong>
+        Supporting Document:
+      </strong>
+
+      {selectedUser.supportingDocument ? (
+
+        <a
+          href={selectedUser.supportingDocument}
+          target="_blank"
+          rel="noreferrer"
+        >
+          View Document
+        </a>
+
+      ) : (
+
+        <span>
+          No document uploaded
+        </span>
+
+      )}
+
+    </div>
+
+    <div className={styles.detailRow}>
+      <strong>Interested Areas:</strong>
+
+      <span>
+        {(selectedUser.interestAreas || []).join(', ')}
+      </span>
+    </div>
+
+    <button
+      className={styles.cancelBtn}
+      onClick={() =>
+        setSelectedUser(null)
+      }
+    >
+      Close
+    </button>
+
+    </div>
+      </div>
+)}
 
       {/* USERS TABLE */}
       <div className={styles.section}>
@@ -440,12 +612,25 @@ const approveUser = async (uid, userData) => {
                 {log.action === 'approve_guide' &&
                     `✅ ${log.adminName} approved ${log.targetEmail}`}
 
+                {log.action === 'reject_guide' &&
+                    `❌ ${log.adminName} rejected an applicant`}
+
               </li>
             ))}
 
           </ul>
         )}
       </div>
+
+      {notification && (
+
+      <div className={styles.notification}>
+
+        {notification}
+
+      </div>
+    )}
+
 
       {/* CONFIRM DELETE */}
       {deleteId && (

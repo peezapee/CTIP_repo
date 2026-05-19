@@ -1,9 +1,9 @@
-// utils/certificateUtils.js
-// Utility to generate PDF certificates
+// utils/BadgeUtils.js
+// Utility to generate PDF badges
 
 import jsPDF from 'jspdf';
 
-export const generateCertificatePDF = (certificateData, guideName) => {
+export const generateBadgePDF = (badgeData, guideName) => {
   try {
     const pdf = new jsPDF({
       orientation: 'landscape',
@@ -28,7 +28,7 @@ export const generateCertificatePDF = (certificateData, guideName) => {
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(48);
     pdf.setTextColor(46, 106, 79);
-    pdf.text('CERTIFICATE', 148.5, 50, { align: 'center' });
+    pdf.text('BADGE', 148.5, 50, { align: 'center' });
 
     // Subtitle
     pdf.setFontSize(14);
@@ -44,7 +44,7 @@ export const generateCertificatePDF = (certificateData, guideName) => {
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(12);
     pdf.setTextColor(0, 0, 0);
-    pdf.text('This certifies that', 148.5, 85, { align: 'center' });
+    pdf.text('This badge is awarded to', 148.5, 85, { align: 'center' });
 
     // Guide name
     pdf.setFont('helvetica', 'bold');
@@ -64,14 +64,14 @@ export const generateCertificatePDF = (certificateData, guideName) => {
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(16);
     pdf.setTextColor(58, 134, 255);
-    pdf.text(certificateData.title, 148.5, 135, { align: 'center' });
+    pdf.text(badgeData.title, 148.5, 135, { align: 'center' });
 
-    // Certificate details
+    // Badge details
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(10);
     pdf.setTextColor(100, 100, 100);
 
-    const issuedDate = new Date(certificateData.issuedAt).toLocaleDateString(
+    const issuedDate = new Date(badgeData.issuedAt).toLocaleDateString(
       'en-US',
       {
         year: 'numeric',
@@ -80,7 +80,7 @@ export const generateCertificatePDF = (certificateData, guideName) => {
       }
     );
 
-    const expiresDate = new Date(certificateData.expiresAt).toLocaleDateString(
+    const expiresDate = new Date(badgeData.expiresAt).toLocaleDateString(
       'en-US',
       {
         year: 'numeric',
@@ -89,10 +89,10 @@ export const generateCertificatePDF = (certificateData, guideName) => {
       }
     );
 
-    pdf.text(`Certificate Number: ${certificateData.certificateNumber}`, 30, 160);
+    pdf.text(`Badge Number: ${badgeData.BadgeNumber}`, 30, 160);
     pdf.text(`Issued: ${issuedDate}`, 30, 167);
     pdf.text(`Expires: ${expiresDate}`, 30, 174);
-    pdf.text(`Score: ${certificateData.score}%`, 30, 181);
+    pdf.text(`Score: ${badgeData.score}%`, 30, 181);
 
     // Seal/Badge
     pdf.setFont('helvetica', 'bold');
@@ -105,21 +105,21 @@ export const generateCertificatePDF = (certificateData, guideName) => {
     pdf.setFontSize(9);
     pdf.setTextColor(150, 150, 150);
     pdf.text(
-      'Digital Park Guide Training & Certification System',
+      'Digital Park Guide Training & Badge System',
       148.5,
       200,
       { align: 'center' }
     );
 
     // Generate filename
-    const filename = `Certificate_${guideName.replace(/\s+/g, '_')}_${new Date().getTime()}.pdf`;
+    const filename = `Badge_${guideName.replace(/\s+/g, '_')}_${new Date().getTime()}.pdf`;
 
     // Download PDF
     pdf.save(filename);
 
     return true;
   } catch (error) {
-    console.error('Error generating certificate PDF:', error);
+    console.error('Error generating badge PDF:', error);
     return false;
   }
 };

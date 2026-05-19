@@ -6,6 +6,14 @@ import rateLimit from "express-rate-limit";
 import { spawn } from "child_process";
 import { execSync } from "child_process";
 import path from "path";
+import multer from "multer";
+import { fileURLToPath } from "url";
+
+const __filename =
+  fileURLToPath(import.meta.url);
+
+const __dirname =
+  path.dirname(__filename);
 
 const serviceAccount = JSON.parse(
   fs.readFileSync("./serviceAccountKey.json")
@@ -16,13 +24,95 @@ admin.initializeApp({
 });
 
 const db = admin.firestore();
+
 const app = express();
 
-// Use relative path for detector (works on any platform)
-const DETECTOR_CWD = path.join(process.cwd(), "..", "innovation_project");
-const DETECTOR_FEED_URL = "http://127.0.0.1:5000/video-feed";
-
 app.use(cors());
+
+app.use(express.json());
+
+app.use(
+  "/certificates",
+  express.static(
+    path.join(__dirname, "public/certificates")
+  )
+);
+
+app.use(
+  "/receipts",
+  express.static(
+    path.join(__dirname, "public/receipts")
+  )
+);
+
+const storage = multer.diskStorage({
+
+  destination: (req, file, cb) => {
+
+  cb(
+    null,
+    path.join(
+      __dirname,
+      "public",
+      "certificates"
+    )
+  );
+  },
+
+  filename: (req, file, cb) => {
+
+    cb(
+      null,
+      Date.now() +
+      "-" +
+      file.originalname
+    );
+  }
+});
+
+const upload = multer({
+  storage
+});
+
+const receiptStorage =
+  multer.diskStorage({
+
+    destination: (
+      req,
+      file,
+      cb
+    ) => {
+
+      cb(
+        null,
+        path.join(
+          __dirname,
+          "public",
+          "receipts"
+        )
+      );
+    },
+
+    filename: (
+      req,
+      file,
+      cb
+    ) => {
+
+      cb(
+        null,
+        Date.now() +
+        "-" +
+        file.originalname
+      );
+    }
+});
+
+const receiptUpload =
+  multer({
+    storage: receiptStorage
+  });
+
 app.use(express.json());
 
 const limiter = rateLimit({
@@ -37,6 +127,12 @@ app.use(limiter);
 
 let detectorProcess = null;
 let detectorLocked = false;
+
+const DETECTOR_FEED_URL =
+  "http://127.0.0.1:5000/video-feed";
+
+const DETECTOR_CWD =
+  "C:/Users/celes/Downloads/COS30049 CTIP/CTIP_repo/innovation_project";
 
 // Find Python executable (python3 on macOS/Linux, python on Windows)
 function getPythonExecutable() {
@@ -482,7 +578,7 @@ app.post(
         role: 'admin'
       });
 
-      // Update Firestore user document
+      // Update Firestore user certificate
       await db.collection("users").doc(user.uid).update({
         role: "admin"
       });
@@ -524,6 +620,40 @@ app.use(
   express.static(
     "C:/Users/celes/Downloads/COS30049 CTIP/CTIP_repo/innovation_project/incident_snapshots"
   )
+);
+
+app.post(
+  "/upload-certificates",
+
+  upload.single("certificate"),
+
+  (req, res) => {
+
+    res.json({
+
+      filePath:
+        `http://localhost:3000/certificates/${req.file.filename}`
+    });
+  }
+);
+
+app.post(
+
+  "/upload-receipt",
+
+  receiptUpload.single(
+    "receipt"
+  ),
+
+  (req, res) => {
+
+    res.json({
+
+      receiptURL:
+`http://localhost:3000/receipts/${req.file.filename}`
+
+    });
+  }
 );
 
 app.listen(3000, () => {

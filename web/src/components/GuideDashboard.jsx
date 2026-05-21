@@ -25,11 +25,20 @@ function GuideDashboard({ activeTab, user, onTabChange }) {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (user?.uid) {
-      fetchEnrollments()
-      fetchBadges()
+  const loadDashboard =
+    async () => {
+
+      await fetchModules()
+
+      if (user?.uid) {
+
+        await fetchEnrollments()
+
+        await fetchBadges()
+      }
     }
-    fetchModules()
+
+  loadDashboard()
   }, [user?.uid])
 
   const fetchModules = async () => {
@@ -111,14 +120,18 @@ function GuideDashboard({ activeTab, user, onTabChange }) {
       // ── MY DASHBOARD TAB ──
       case 'dashboard':
 
-      const approvedEnrollments =
-        enrollments.filter(
-          e =>
-            e.status === 'approved' ||
-            e.status === 'passed' ||
-            e.status === 'failed'
-        )
-        const completed = enrollments.filter(e => e.status === 'passed').length
+        const approvedEnrollments =
+          enrollments.filter(
+            e =>
+              e.status === 'in-progress' ||
+              e.status === 'passed' ||
+              e.status === 'failed'
+          )
+
+        const completed =
+          enrollments.filter(
+            e => e.status === 'passed'
+          ).length
         const total = approvedEnrollments.length
         const overallProgress = total > 0 ? Math.round((completed / total) * 100) : 0
         const validBadges = badges.filter(b => !isExpired(b.expiresAt)).length

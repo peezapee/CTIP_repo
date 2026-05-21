@@ -96,6 +96,7 @@ function Sidebar({
 }) {
 
   const [pendingCount, setPendingCount] = useState(0)
+  const [requestCount, setRequestCount] = useState(0)
   const [alertCount, setAlertCount]     = useState(0)
   const role = user?.role || 'guide'
   const name = user?.name || user?.email || 'User'
@@ -124,6 +125,28 @@ function Sidebar({
       setAlertCount(count)
     })
     return () => unsubscribe()
+  }, [role])
+
+  useEffect(() => {
+
+    if (role !== 'admin') return
+
+    const q = query(
+      collection(db, 'moduleRequests'),
+      where('status', '==', 'pending')
+    )
+
+    const unsubscribe =
+      onSnapshot(q, (snapshot) => {
+
+        setRequestCount(
+          snapshot.docs.length
+        )
+
+      })
+
+    return () => unsubscribe()
+
   }, [role])
 
   return (
@@ -210,9 +233,18 @@ function Sidebar({
             pendingCount > 0 && (
 
               <span className={styles.badge}>
-                🔴 {pendingCount}
+                {pendingCount}
               </span>
             )}
+
+            {tab.id === 'enrollment' &&
+              role === 'admin' &&
+              requestCount > 0 && (
+
+                <span className={styles.badge}>
+                  {requestCount}
+                </span>
+              )}
 
             {tab.id === 'alerts' &&
              role === 'admin' &&

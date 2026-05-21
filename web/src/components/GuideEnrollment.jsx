@@ -262,6 +262,8 @@ const groupedByModule =
                     ? '6px solid #ef74bc'
                     : module.title.includes('Kubah National Park Conservation Guiding')
                     ? '6px solid #714ce2'
+                    : module.title.includes('General Park Guide Orientation')
+                    ? '6px solid #832525'
                     : '6px solid #ccc'
               }}
             >
@@ -279,6 +281,8 @@ const groupedByModule =
                       ? '#ef74bc'
                       : module.title.includes('Kubah National Park Conservation Guiding')
                       ? '#714ce2'
+                      : module.title.includes('General Park Guide Orientation')
+                      ? '#832525'
                       : '6px solid #ccc'
                 }}
               >

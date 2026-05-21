@@ -22,7 +22,8 @@ import {
   collection,
   query,
   where,
-  getDocs
+  getDocs,
+  addDoc
 } from 'firebase/firestore'
 
 function RegisterPage() {
@@ -288,6 +289,48 @@ useEffect(() => {
           createdAt: serverTimestamp()
         }
       )
+
+      const moduleSnapshot =
+        await getDocs(
+          collection(db, 'trainingModules')
+        )
+
+      const generalModule =
+        moduleSnapshot.docs.find(
+          doc =>
+            doc.data().required === true
+        )
+
+      if (generalModule) {
+
+        try {
+
+          await addDoc(
+            collection(db, 'enrollments'),
+            {
+
+              guideId: user.uid,
+
+              moduleId:
+                generalModule.id,
+
+              progress: 0,
+
+              status: 'in-progress',
+
+              enrolledAt:
+                new Date().toISOString()
+            }
+          )
+
+        } catch (err) {
+
+          console.error(
+            'Auto enrollment failed:',
+            err
+          )
+        }
+      }
 
       setMessage(
         'Registration submitted successfully. Please wait for administrator approval.'

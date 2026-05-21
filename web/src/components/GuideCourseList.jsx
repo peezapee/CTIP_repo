@@ -466,8 +466,41 @@ const lockedModules =
 
                   <button
                     className={styles.primaryBtn}
-                    onClick={() => {
+                    onClick={async () => {
 
+                      // FREE / compulsory module
+                      if (
+                        module.price === 0 ||
+                        module.required === true
+                      ) {
+
+                        await addDoc(
+                          collection(db, 'enrollments'),
+                          {
+
+                            guideId: userId,
+
+                            moduleId: module.id,
+
+                            progress: 0,
+
+                            status: 'in-progress',
+
+                            enrolledAt:
+                              new Date().toISOString()
+                          }
+                        )
+
+                        await fetchEnrollments()
+
+                        alert(
+                          '✅ General module unlocked'
+                        )
+
+                        return
+                      }
+
+                      // Paid modules
                       setSelectedModule(module)
 
                       setShowPaymentModal(true)
@@ -537,13 +570,44 @@ const lockedModules =
 
                     <button
                       className={styles.primaryBtn}
-                        onClick={() => {
+                      onClick={async () => {
 
-                          setSelectedModule(module)
+                      // FREE / compulsory module
+                      if (
+                        module.price === 0 ||
+                        module.required === true
+                      ) {
 
-                          setShowPaymentModal(true)
+                        await addDoc(
+                          collection(db, 'enrollments'),
+                          {
 
-                        }}
+                            guideId: userId,
+
+                            moduleId: module.id,
+
+                            progress: 0,
+
+                            status: 'in-progress',
+
+                            enrolledAt:
+                              new Date().toISOString()
+                          }
+                        )
+
+                        await fetchEnrollments()
+
+                        alert('✅ General module unlocked')
+
+                        return
+                      }
+
+                      // Paid module
+                      setSelectedModule(module)
+
+                      setShowPaymentModal(true)
+
+                    }}
                     >
                       🔒 Request Access
                     </button>

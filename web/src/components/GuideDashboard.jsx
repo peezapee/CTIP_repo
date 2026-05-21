@@ -110,8 +110,16 @@ function GuideDashboard({ activeTab, user, onTabChange }) {
 
       // ── MY DASHBOARD TAB ──
       case 'dashboard':
+
+      const approvedEnrollments =
+        enrollments.filter(
+          e =>
+            e.status === 'approved' ||
+            e.status === 'passed' ||
+            e.status === 'failed'
+        )
         const completed = enrollments.filter(e => e.status === 'passed').length
-        const total = enrollments.length
+        const total = approvedEnrollments.length
         const overallProgress = total > 0 ? Math.round((completed / total) * 100) : 0
         const validBadges = badges.filter(b => !isExpired(b.expiresAt)).length
         const expiredBadges = badges.filter(b => isExpired(b.expiresAt)).length
@@ -186,13 +194,13 @@ function GuideDashboard({ activeTab, user, onTabChange }) {
                 <h3>📚 Training Modules</h3>
                 <span className={styles.badge}>{total} Enrolled</span>
               </div>
-              {enrollments.length === 0 ? (
+              {approvedEnrollments.length === 0  ? (
                 <p style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
                   No modules enrolled yet. Go to Training to enroll in modules.
                 </p>
               ) : (
                 <div className={styles.moduleList}>
-                  {enrollments.map((enrollment) => {
+                  {approvedEnrollments.map((enrollment) => {
                     const module = getModuleInfo(enrollment.moduleId)
                     const progress = getEnrollmentProgress(enrollment)
                     const status = getStatusLabel(enrollment)

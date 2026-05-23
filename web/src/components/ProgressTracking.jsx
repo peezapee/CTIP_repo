@@ -118,119 +118,223 @@ function ProgressTracking() {
                 </tr>
               </thead>
               <tbody>
+
                 {guides.map((guide) => {
-                  const stats = getGuideStats(guide.uid)
-                  const avgProgress = getGuideProgress(guide.uid)
+
+                  const stats =
+                    getGuideStats(guide.uid)
+
+                  const avgProgress =
+                    getGuideProgress(guide.uid)
 
                   return (
-                    <tr key={guide.uid}>
-                      <td>
-                        <strong>{guide.name}</strong>
-                        <br />
-                        <small style={{ color: '#666' }}>{guide.email}</small>
-                      </td>
-                      <td>
-                        <div
-                          className={styles.progressBarSmall}
-                          style={{ marginBottom: '5px' }}
-                        >
+
+                    <React.Fragment key={guide.uid}>
+
+                      <tr>
+
+                        <td>
+                          <strong>
+                            {guide.name}
+                          </strong>
+
+                          <br />
+
+                          <small
+                            style={{
+                              color: '#666'
+                            }}
+                          >
+                            {guide.email}
+                          </small>
+                        </td>
+
+                        <td>
+
                           <div
-                            className={styles.progressFillSmall}
-                            style={{ width: `${avgProgress}%` }}
-                          />
-                        </div>
-                        {avgProgress}%
-                      </td>
-                      <td>{stats.total}</td>
-                      <td>{stats.completed}</td>
-                      <td>
-                        <span className={styles.badge} style={{ backgroundColor: '#06a77d' }}>
-                          {stats.passed}
-                        </span>
-                      </td>
-                      <td>
-                        <span className={styles.badge} style={{ backgroundColor: '#3a86ff' }}>
-                          {stats.inProgress}
-                        </span>
-                      </td>
-                      <td>
-                        <button
-                          className={styles.primaryBtn}
-                          onClick={() =>
-                            setSelectedGuide(
-                              selectedGuide?.uid === guide.uid ? null : guide
-                            )
-                          }
-                        >
-                          {selectedGuide?.uid === guide.uid ? '▼ Hide' : '▶ Details'}
-                        </button>
-                      </td>
-                    </tr>
+                            className={
+                              styles.progressBarSmall
+                            }
+                            style={{
+                              marginBottom: '5px'
+                            }}
+                          >
+
+                            <div
+                              className={
+                                styles.progressFillSmall
+                              }
+                              style={{
+                                width: `${avgProgress}%`
+                              }}
+                            />
+
+                          </div>
+
+                          {avgProgress}%
+
+                        </td>
+
+                        <td>{stats.total}</td>
+
+                        <td>{stats.completed}</td>
+
+                        <td>
+
+                          <span
+                            className={styles.badge}
+                            style={{
+                              backgroundColor:
+                                '#06a77d'
+                            }}
+                          >
+                            {stats.passed}
+                          </span>
+
+                        </td>
+
+                        <td>
+
+                          <span
+                            className={styles.badge}
+                            style={{
+                              backgroundColor:
+                                '#3a86ff'
+                            }}
+                          >
+                            {stats.inProgress}
+                          </span>
+
+                        </td>
+
+                        <td>
+
+                          <button
+                            className={
+                              styles.primaryBtn
+                            }
+
+                            onClick={() => {
+
+                              setSelectedGuide(
+                                selectedGuide?.uid ===
+                                guide.uid
+                                  ? null
+                                  : guide
+                              )
+
+                            }}
+                          >
+
+                            {selectedGuide?.uid ===
+                            guide.uid
+                              ? '▼ Hide'
+                              : '▶ Details'}
+
+                          </button>
+
+                        </td>
+
+                      </tr>
+
+                      {selectedGuide?.uid ===
+                        guide.uid && (
+
+                        <tr>
+
+                          <td colSpan="7">
+
+                            <div
+                              style={{
+                                padding: '20px',
+                                background: '#f8f9fa',
+                                borderRadius: '12px'
+                              }}
+                            >
+
+                              <h3
+                                style={{
+                                  marginBottom: '15px'
+                                }}
+                              >
+                                📋 Detailed Progress
+                              </h3>
+
+                              {enrollments
+                                .filter(
+                                  e =>
+                                    e.guideId ===
+                                    guide.uid
+                                )
+                                .map(
+                                  (enrollment) => (
+
+                                  <div
+                                    key={
+                                      enrollment.id
+                                    }
+
+                                    style={{
+                                      marginBottom:
+                                        '15px',
+                                      padding:
+                                        '15px',
+                                      background:
+                                        'white',
+                                      borderRadius:
+                                        '10px'
+                                    }}
+                                  >
+
+                                    <strong>
+                                      {getModuleName(
+                                        enrollment.moduleId
+                                      )}
+                                    </strong>
+
+                                    <p>
+                                      Progress:
+                                      {' '}
+                                      {enrollment.progress}%
+                                    </p>
+
+                                    <p>
+                                      Status:
+                                      {' '}
+                                      {enrollment.status}
+                                    </p>
+
+                                    <p>
+                                      Score:
+                                      {' '}
+
+                                      {enrollment.score !=
+                                      null
+                                        ? `${enrollment.score}%`
+                                        : '—'}
+                                    </p>
+
+                                  </div>
+                              ))}
+
+                            </div>
+
+                          </td>
+
+                        </tr>
+                      )}
+
+                    </React.Fragment>
                   )
                 })}
+
               </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Detailed View */}
-      {selectedGuide && (
-        <div style={{ marginTop: '40px' }}>
-          <h3>📋 Detailed Progress for {selectedGuide.name}</h3>
-
-          <div className={styles.tableContainer}>
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th>Module</th>
-                  <th>Progress</th>
-                  <th>Status</th>
-                  <th>Score</th>
-                  <th>Enrolled Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {enrollments
-                  .filter((e) => e.guideId === selectedGuide.uid)
-                  .map((enrollment) => (
-                    <tr key={enrollment.id}>
-                      <td>{getModuleName(enrollment.moduleId)}</td>
-                      <td>
-                        <div className={styles.progressBarSmall}>
-                          <div
-                            className={styles.progressFillSmall}
-                            style={{ width: `${enrollment.progress}%` }}
-                          />
+                          </table>
                         </div>
-                        {enrollment.progress}%
-                      </td>
-                      <td>
-                        <span
-                          className={styles.badge}
-                          style={{
-                            backgroundColor:
-                              enrollment.status === 'passed'
-                                ? '#06a77d'
-                                : enrollment.status === 'completed'
-                                  ? '#2d6a4f'
-                                  : '#3a86ff',
-                          }}
-                        >
-                          {enrollment.status}
-                        </span>
-                      </td>
-                      <td>{enrollment.score !== null ? `${enrollment.score}%` : '—'}</td>
-                      <td>{new Date(enrollment.enrolledAt).toLocaleDateString()}</td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
+                      )}
+                    </div>
+                  </div>
+                )
+              }
 
 export default ProgressTracking

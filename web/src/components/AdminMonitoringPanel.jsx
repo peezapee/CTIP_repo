@@ -51,7 +51,6 @@ function AdminMonitoringPanel() {
 
   useEffect(() => {
     loadStatus()
-
     const id = setInterval(loadStatus, 5000)
     return () => clearInterval(id)
   }, [loadStatus])
@@ -59,21 +58,17 @@ function AdminMonitoringPanel() {
   useEffect(() => {
     const incidentsQuery = query(
       collection(db, 'incidents'),
+      orderBy('timestamp', 'desc'),
       limit(10)
     )
 
     const unsubscribe = onSnapshot(
-
       incidentsQuery,
       (snapshot) => {
-        
-        console.log(snapshot.docs.length)
-
         const nextIncidents = snapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         }))
-
         setIncidents(nextIncidents)
       },
       (error) => {
@@ -84,16 +79,8 @@ function AdminMonitoringPanel() {
     return () => unsubscribe()
   }, [])
 
-  const alertIncidents =
-  incidents.filter(
-    (incident) =>
-      [
-        'plant_picking',
-        'cuttingtrees',
-        'animaltrap',
-        'netgun',
-        'touching_animal'
-      ].includes(incident.type)
+  const alertIncidents = incidents.filter((incident) =>
+    ['plant_picking', 'cuttingtrees', 'animaltrap', 'netgun', 'touching_animal'].includes(incident.type)
   )
 
   const updateLock = useCallback(async (action) => {
@@ -126,10 +113,7 @@ function AdminMonitoringPanel() {
       setLockMessage(error.message || 'Unable to update camera access.')
     } finally {
       setLockLoading(false)
-
-      setTimeout(() => {
-        setLockMessage('')
-      }, 3000)
+      setTimeout(() => setLockMessage(''), 3000)
     }
   }, [loadStatus])
 
@@ -254,7 +238,6 @@ function AdminMonitoringPanel() {
                 <tr>
                   <th>Type</th>
                   <th>Snapshot</th>
-                  <th>Video</th>
                   <th>Hash</th>
                   <th>Captured</th>
                 </tr>
@@ -264,20 +247,19 @@ function AdminMonitoringPanel() {
                 {incidents.map((incident) => (
                   <tr key={incident.id}>
                     <td>{incident.type || 'Unknown'}</td>
-                    <td>{getFileName(incident.snapshot)}</td>
                     <td>
-                        {incident.snapshot ? (
-                          <a
-                            href={`http://localhost:3000/${incident.snapshot.replace(/\\/g, '/')}`}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            View Snapshot
-                          </a>
-                        ) : (
-                          '-'
-                        )}
-                      </td>
+                      {incident.snapshot ? (
+                        <a
+                          href={`http://localhost:3000/${incident.snapshot.replace(/\\/g, '/')}`}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          {getFileName(incident.snapshot)}
+                        </a>
+                      ) : (
+                        '-'
+                      )}
+                    </td>
                     <td>{shortHash(incident.snapshot_hash)}</td>
                     <td>{formatTimestamp(incident.timestamp)}</td>
                   </tr>
@@ -292,34 +274,22 @@ function AdminMonitoringPanel() {
 }
 
 function formatConfidence(value) {
-  if (typeof value !== 'number') {
-    return '-'
-  }
-
+  if (typeof value !== 'number') return '-'
   return `${Math.round(value * 100)}%`
 }
 
 function formatTimestamp(timestamp) {
-  if (!timestamp?.toDate) {
-    return 'Pending'
-  }
-
+  if (!timestamp?.toDate) return 'Pending'
   return timestamp.toDate().toLocaleString()
 }
 
 function getFileName(filePath) {
-  if (!filePath || filePath === 'Not recording yet') {
-    return filePath || '-'
-  }
-
+  if (!filePath || filePath === 'Not recording yet') return filePath || '-'
   return String(filePath).split(/[\\/]/).pop()
 }
 
 function shortHash(value) {
-  if (!value) {
-    return '-'
-  }
-
+  if (!value) return '-'
   return `${String(value).slice(0, 10)}...`
 }
 

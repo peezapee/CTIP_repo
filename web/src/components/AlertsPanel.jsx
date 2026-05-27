@@ -91,13 +91,15 @@ export default function AlertsPanel() {
   useEffect(() => {
     const q = query(collection(db, 'sensorData'))
     const unsub = onSnapshot(q, (snap) => {
+      const getTime = (ts) => {
+        if (!ts) return 0
+        if (typeof ts === 'string') return new Date(ts).getTime()
+        if (ts?.toDate) return ts.toDate().getTime()
+        return 0
+      }
       const docs = snap.docs
         .map((d) => ({ id: d.id, ...d.data() }))
-        .sort((a, b) => {
-          const tA = a.timestamp?.toDate?.()?.getTime() ?? 0
-          const tB = b.timestamp?.toDate?.()?.getTime() ?? 0
-          return tB - tA
-        })
+        .sort((a, b) => getTime(b.timestamp) - getTime(a.timestamp))
       setSensorAlerts(docs)
     })
     return () => unsub()

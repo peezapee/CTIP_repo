@@ -33,14 +33,18 @@ function getSeverity(confidence) {
 
 function formatTimestamp(ts) {
   if (!ts) return 'Pending'
+  if (typeof ts === 'string') return ts
   if (typeof ts === 'number') return `Sensor Time: ${ts}`
   if (!ts?.toDate) return 'Pending'
   return ts.toDate().toLocaleString()
 }
 
 function isToday(ts) {
-  if (!ts?.toDate) return false
-  const d = ts.toDate()
+  let d = null
+  if (!ts) return false
+  if (typeof ts === 'string') d = new Date(ts)
+  else if (ts?.toDate) d = ts.toDate()
+  if (!d) return false
   const now = new Date()
   return (
     d.getFullYear() === now.getFullYear() &&
@@ -56,6 +60,7 @@ export default function AlertsPanel() {
   const [markingId, setMarkingId]       = useState(null)
   const [error, setError]               = useState('')
 
+  // Listen to AI incidents collection
   useEffect(() => {
     const q = query(
       collection(db, 'incidents'),
@@ -82,19 +87,27 @@ export default function AlertsPanel() {
     return () => unsub()
   }, [])
 
+  // Listen to IoT sensorData collection
   useEffect(() => {
     const q = query(collection(db, 'sensorData'))
     const unsub = onSnapshot(q, (snap) => {
-      const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      const docs = snap.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => {
+          const tA = a.timestamp?.toDate?.()?.getTime() ?? 0
+          const tB = b.timestamp?.toDate?.()?.getTime() ?? 0
+          return tB - tA
+        })
       setSensorAlerts(docs)
     })
     return () => unsub()
   }, [])
 
-  const markReviewed = async (id) => {
+  // collectionName param tells it which Firestore collection to update
+  const markReviewed = async (id, collectionName = 'incidents') => {
     setMarkingId(id)
     try {
-      await updateDoc(doc(db, 'incidents', id), { reviewed: true })
+      await updateDoc(doc(db, collectionName, id), { reviewed: true })
     } catch (err) {
       console.error('Mark reviewed error:', err)
     } finally {
@@ -102,22 +115,26 @@ export default function AlertsPanel() {
     }
   }
 
-  const allAlerts = [
-    ...alerts,
-    ...sensorAlerts,
-  ]
+  const allAlerts = [...alerts, ...sensorAlerts]
 
   const unresolved  = allAlerts.filter((a) => !a.reviewed)
   const todayAlerts = allAlerts.filter((a) => isToday(a.timestamp))
 
-  const displayed = alerts.filter((a) => {
+  // AI alerts filtered by current tab
+  const aiAlerts = alerts.filter((a) => {
     if (filter === 'unresolved') return !a.reviewed
     if (filter === 'reviewed')   return Boolean(a.reviewed)
     return true
   })
 
-  const aiAlerts  = displayed.filter((a) => a.source === 'ai' || !a.source)
-  const iotAlerts = sensorAlerts
+  // IoT alerts filtered by current tab (same logic as AI)
+  const iotAlerts = sensorAlerts.filter((a) => {
+    if (filter === 'unresolved') return !a.reviewed
+    if (filter === 'reviewed')   return Boolean(a.reviewed)
+    return true
+  })
+
+  const nothingToShow = aiAlerts.length === 0 && iotAlerts.length === 0
 
   return (
     <div>
@@ -167,7 +184,7 @@ export default function AlertsPanel() {
           ))}
         </div>
 
-        {displayed.length === 0 ? (
+        {nothingToShow ? (
           <div className={styles.emptyState}>
             <div className={styles.emptyIcon}>{filter === 'reviewed' ? '✅' : '📡'}</div>
             <h3>{filter === 'reviewed' ? 'No reviewed alerts' : 'No active violations'}</h3>
@@ -179,98 +196,102 @@ export default function AlertsPanel() {
           </div>
         ) : (
           <>
-            <div className={styles.monitorList}>
-              <h3 style={{ marginBottom: '16px', color: '#1a3d3a' }}>
-                🤖 AI Monitoring Alerts
-              </h3>
-              {aiAlerts.map((alert) => {
-                const severity      = getSeverity(alert.confidence ?? 0)
-                const label         = VIOLATION_LABELS[alert.type] ?? alert.type
-                const icon          = VIOLATION_ICONS[alert.type] ?? '⚠️'
-                const severityColor = severity === 'HIGH' ? '#e63946' : severity === 'MEDIUM' ? '#e69655' : '#2d6a4f'
-                const severityBg = severity === 'HIGH' ? '#ffe0e6' : severity === 'MEDIUM' ? '#f6edcf' : '#e8f5e9'
-                const severityText = severity === 'HIGH' ? '#d32f2f' : severity === 'MEDIUM' ? '#e69655' : '#2e7d32'
-                return (
-                  <div
-                    key={alert.id}
-                    className={styles.monitorListItem}
-                    style={{
-                      borderLeft: `4px solid ${severityColor}`,
-                      opacity: alert.reviewed ? 0.6 : 1,
-                      transition: 'opacity 0.2s',
-                      display: 'flex',
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: '12px',
-                    }}
-                  >
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
-                        <span style={{ fontSize: '1.15rem' }}>{icon}</span>
-                        <strong style={{ color: '#1a3d3a', fontSize: '0.95rem' }}>{label}</strong>
-                        <span
-                          style={{
-                            padding: '2px 8px',
-                            borderRadius: 4,
-                            fontSize: '0.7rem',
-                            fontWeight: 700,
-                            background: severityBg,
-                            color: severityText,
-                            letterSpacing: '0.5px',
-                          }}
-                        >
-                          {severity}
-                        </span>
-                        {alert.reviewed && (
+            {/* AI Monitoring Alerts */}
+            {aiAlerts.length > 0 && (
+              <div className={styles.monitorList}>
+                <h3 style={{ marginBottom: '16px', color: '#1a3d3a' }}>
+                  🤖 AI Monitoring Alerts
+                </h3>
+                {aiAlerts.map((alert) => {
+                  const severity      = getSeverity(alert.confidence ?? 0)
+                  const label         = VIOLATION_LABELS[alert.type] ?? alert.type
+                  const icon          = VIOLATION_ICONS[alert.type] ?? '⚠️'
+                  const severityColor = severity === 'HIGH' ? '#e63946' : severity === 'MEDIUM' ? '#e69655' : '#2d6a4f'
+                  const severityBg    = severity === 'HIGH' ? '#ffe0e6' : severity === 'MEDIUM' ? '#f6edcf' : '#e8f5e9'
+                  const severityText  = severity === 'HIGH' ? '#d32f2f' : severity === 'MEDIUM' ? '#e69655' : '#2e7d32'
+                  return (
+                    <div
+                      key={alert.id}
+                      className={styles.monitorListItem}
+                      style={{
+                        borderLeft: `4px solid ${severityColor}`,
+                        opacity: alert.reviewed ? 0.6 : 1,
+                        transition: 'opacity 0.2s',
+                        display: 'flex',
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: '12px',
+                      }}
+                    >
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+                          <span style={{ fontSize: '1.15rem' }}>{icon}</span>
+                          <strong style={{ color: '#1a3d3a', fontSize: '0.95rem' }}>{label}</strong>
                           <span
                             style={{
                               padding: '2px 8px',
                               borderRadius: 4,
                               fontSize: '0.7rem',
                               fontWeight: 700,
-                              background: '#e8f5e9',
-                              color: '#2e7d32',
+                              background: severityBg,
+                              color: severityText,
+                              letterSpacing: '0.5px',
                             }}
                           >
-                            REVIEWED
+                            {severity}
                           </span>
+                          {alert.reviewed && (
+                            <span
+                              style={{
+                                padding: '2px 8px',
+                                borderRadius: 4,
+                                fontSize: '0.7rem',
+                                fontWeight: 700,
+                                background: '#e8f5e9',
+                                color: '#2e7d32',
+                              }}
+                            >
+                              REVIEWED
+                            </span>
+                          )}
+                        </div>
+                        <div className={styles.monitorListMeta}>
+                          {Math.round((alert.confidence ?? 0) * 100)}% confidence
+                          &nbsp;·&nbsp;Camera 1&nbsp;·&nbsp;
+                          {formatTimestamp(alert.timestamp)}
+                        </div>
+                        {alert.snapshot && (
+                          <div style={{ marginTop: 6 }}>
+                            <a
+                              href={`http://localhost:3000/${alert.snapshot.replace(/\\/g, '/')}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{ fontSize: '0.82rem', color: '#245c9f', textDecoration: 'none' }}
+                            >
+                              📷 View Evidence Snapshot
+                            </a>
+                          </div>
                         )}
                       </div>
-                      <div className={styles.monitorListMeta}>
-                        {Math.round((alert.confidence ?? 0) * 100)}% confidence
-                        &nbsp;·&nbsp;Camera 1&nbsp;·&nbsp;
-                        {formatTimestamp(alert.timestamp)}
-                      </div>
-                      {alert.snapshot && (
-                        <div style={{ marginTop: 6 }}>
-                          <a
-                            href={`http://localhost:3000/${alert.snapshot.replace(/\\/g, '/')}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            style={{ fontSize: '0.82rem', color: '#245c9f', textDecoration: 'none' }}
-                          >
-                            📷 View Evidence Snapshot
-                          </a>
-                        </div>
+                      {!alert.reviewed && (
+                        <button
+                          className={styles.approveBtn}
+                          style={{ flexShrink: 0, whiteSpace: 'nowrap' }}
+                          disabled={markingId === alert.id}
+                          onClick={() => markReviewed(alert.id, 'incidents')}
+                        >
+                          {markingId === alert.id ? 'Saving…' : '✓ Mark Reviewed'}
+                        </button>
                       )}
                     </div>
-                    {!alert.reviewed && (
-                      <button
-                        className={styles.approveBtn}
-                        style={{ flexShrink: 0, whiteSpace: 'nowrap' }}
-                        disabled={markingId === alert.id}
-                        onClick={() => markReviewed(alert.id)}
-                      >
-                        {markingId === alert.id ? 'Saving…' : '✓ Mark Reviewed'}
-                      </button>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
+                  )
+                })}
+              </div>
+            )}
 
+            {/* IoT Environmental Alerts */}
             {iotAlerts.length > 0 && (
-              <div style={{ marginTop: '36px' }}>
+              <div style={{ marginTop: aiAlerts.length > 0 ? '36px' : '0' }}>
                 <h3 style={{ marginBottom: '16px', color: '#1a3d3a' }}>
                   🌡️ IoT Environmental Alerts
                 </h3>
@@ -284,33 +305,28 @@ export default function AlertsPanel() {
                         : 'LOW'
 
                     const severityColor =
-                      severity === 'HIGH'
-                        ? '#e63946'
-                        : severity === 'MEDIUM'
-                        ? '#e69655'
-                        : '#2d6a4f'
+                      severity === 'HIGH'   ? '#e63946' :
+                      severity === 'MEDIUM' ? '#e69655' : '#2d6a4f'
 
-                      const severityBg =
-                        severity === 'HIGH'
-                          ? '#ffe0e6'
-                          : severity === 'MEDIUM'
-                          ? '#f6edcf'
-                          : '#e8f5e9'
+                    const severityBg =
+                      severity === 'HIGH'   ? '#ffe0e6' :
+                      severity === 'MEDIUM' ? '#f6edcf' : '#e8f5e9'
 
-                      const severityText =
-                        severity === 'HIGH'
-                          ? '#d32f2f'
-                          : severity === 'MEDIUM'
-                          ? '#e69655'
-                          : '#2e7d32'
-                    const label    = VIOLATION_LABELS[alert.type]
-                    const icon     = VIOLATION_ICONS[alert.type]
+                    const severityText =
+                      severity === 'HIGH'   ? '#d32f2f' :
+                      severity === 'MEDIUM' ? '#e69655' : '#2e7d32'
+
+                    const label = VIOLATION_LABELS[alert.type]
+                    const icon  = VIOLATION_ICONS[alert.type]
+
                     return (
                       <div
                         key={alert.id}
                         className={styles.monitorListItem}
                         style={{
                           borderLeft: `4px solid ${severityColor}`,
+                          opacity: alert.reviewed ? 0.6 : 1,
+                          transition: 'opacity 0.2s',
                           display: 'flex',
                           alignItems: 'center',
                           gap: '12px',
@@ -332,6 +348,20 @@ export default function AlertsPanel() {
                             >
                               {severity}
                             </span>
+                            {alert.reviewed && (
+                              <span
+                                style={{
+                                  padding: '2px 8px',
+                                  borderRadius: 4,
+                                  fontSize: '0.7rem',
+                                  fontWeight: 700,
+                                  background: '#e8f5e9',
+                                  color: '#2e7d32',
+                                }}
+                              >
+                                REVIEWED
+                              </span>
+                            )}
                           </div>
                           <div className={styles.monitorListMeta}>
                             Moisture: {alert.moisture}%
@@ -342,9 +372,11 @@ export default function AlertsPanel() {
                         {!alert.reviewed && (
                           <button
                             className={styles.approveBtn}
-                            onClick={() => markReviewed(alert.id)}
+                            style={{ flexShrink: 0, whiteSpace: 'nowrap' }}
+                            disabled={markingId === alert.id}
+                            onClick={() => markReviewed(alert.id, 'sensorData')}
                           >
-                            ✓ Mark Reviewed
+                            {markingId === alert.id ? 'Saving…' : '✓ Mark Reviewed'}
                           </button>
                         )}
                       </div>

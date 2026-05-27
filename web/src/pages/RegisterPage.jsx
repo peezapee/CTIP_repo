@@ -666,21 +666,30 @@ useEffect(() => {
 
             <ul>
               <li>
-                🌿 Protected Area Guiding Course (Semenggoh) - RM50
+                📘 General Park Guide Orientation (General) - Free & Compulsory 
               </li>
 
               <li>
-                🪨 Protected Area Guiding Course (Gua Niah) - RM80
+                🌿 Semenggoh Nature Reserve Guiding (Protected Area) - RM49
+              </li>     
+
+              <li>
+                🌿 Kubah Rainforest Conservation Guiding (Protected Area) - RM60
               </li>
 
               <li>
-                🦧 Wildlife Protection Advanced Training - RM40
+                🌿 Bako National Park Eco-Tourism (Protected Area) - RM78
               </li>
+
+              <li>
+                🌿 Gua Niah Conservation Guiding (Protected Area) - RM87
+              </li>
+
+              <li>
+                🌿 Miri Coastal & Marine Conservation Guiding (Protected Area) - RM88
+              </li>
+
             </ul>
-
-            <p>
-              ⚠️ Payment is required only after administrator approval.
-            </p>
 
           </div>
 
